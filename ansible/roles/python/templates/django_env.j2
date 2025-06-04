@@ -1,0 +1,149 @@
+# ====================================
+# Django Environment Configuration
+# Library Management System
+# Command 7: Ansible Configuration Management
+# ====================================
+
+# Django Core Settings
+SECRET_KEY={{ django_secret_key }}
+DEBUG={{ django_debug | lower }}
+ALLOWED_HOSTS={{ django_allowed_hosts | join(',') }}
+
+# Environment
+ENVIRONMENT={{ environment }}
+DEPLOYMENT_TIMESTAMP={{ ansible_date_time.epoch }}
+
+# Database Configuration
+DATABASE_ENGINE={{ database_engine }}
+DATABASE_NAME={{ database_name }}
+DATABASE_USER={{ database_user }}
+DATABASE_PASSWORD={{ database_password }}
+DATABASE_HOST={{ database_host }}
+DATABASE_PORT={{ database_port }}
+
+# Oracle Database Wallet
+ORACLE_WALLET_LOCATION={{ oracle_wallet_location }}
+TNS_ADMIN={{ oracle_wallet_location }}
+
+# Redis Configuration
+REDIS_HOST={{ redis_host }}
+REDIS_PORT={{ redis_port }}
+REDIS_DB={{ redis_db }}
+
+# Celery Configuration
+CELERY_BROKER_URL={{ celery_broker_url }}
+CELERY_RESULT_BACKEND={{ celery_result_backend }}
+
+# Static and Media Files
+STATIC_ROOT={{ static_root }}
+MEDIA_ROOT={{ media_root }}
+STATIC_URL={{ static_url }}
+MEDIA_URL={{ media_url }}
+
+# Email Configuration
+EMAIL_BACKEND={{ email_backend }}
+EMAIL_HOST={{ email_host }}
+EMAIL_PORT={{ email_port }}
+EMAIL_USE_TLS={{ email_use_tls | lower }}
+EMAIL_HOST_USER={{ email_host_user }}
+EMAIL_HOST_PASSWORD={{ email_host_password }}
+DEFAULT_FROM_EMAIL={{ default_from_email }}
+
+# Security Settings
+CSRF_COOKIE_SECURE={{ csrf_cookie_secure | lower }}
+SESSION_COOKIE_SECURE={{ session_cookie_secure | lower }}
+SECURE_BROWSER_XSS_FILTER={{ secure_browser_xss_filter | lower }}
+SECURE_CONTENT_TYPE_NOSNIFF={{ secure_content_type_nosniff | lower }}
+SECURE_HSTS_SECONDS={{ secure_hsts_seconds }}
+SECURE_HSTS_INCLUDE_SUBDOMAINS={{ secure_hsts_include_subdomains | lower }}
+SECURE_HSTS_PRELOAD={{ secure_hsts_preload | lower }}
+
+# CORS Configuration
+{% if cors_allowed_origins %}
+CORS_ALLOWED_ORIGINS={{ cors_allowed_origins | join(',') }}
+{% endif %}
+CORS_ALLOW_CREDENTIALS={{ cors_allow_credentials | lower }}
+CORS_ALLOW_ALL_ORIGINS={{ cors_allow_all_origins | lower }}
+
+# Oracle Integration Cloud
+OIC_ENABLED={{ oic_enabled | lower }}
+{% if oic_enabled %}
+OIC_ENDPOINT={{ oic_endpoint }}
+OIC_USERNAME={{ oic_username }}
+OIC_PASSWORD={{ oic_password }}
+{% endif %}
+
+# Oracle Analytics Cloud
+ANALYTICS_ENABLED={{ analytics_enabled | lower }}
+{% if analytics_enabled %}
+ANALYTICS_ENDPOINT={{ analytics_endpoint }}
+ANALYTICS_TOKEN={{ analytics_token }}
+{% endif %}
+
+# Logging Configuration
+LOG_LEVEL={{ django_log_level }}
+LOG_FILE={{ django_log_file }}
+
+# Cache Configuration
+CACHE_BACKEND={{ cache_backend }}
+CACHE_LOCATION={{ cache_location }}
+CACHE_TIMEOUT={{ cache_timeout }}
+CACHE_KEY_PREFIX={{ cache_key_prefix }}
+
+# API Configuration
+API_RATE_LIMIT={{ api_rate_limit }}
+API_THROTTLE_ANON={{ api_throttle_anon }}
+API_THROTTLE_USER={{ api_throttle_user }}
+
+# Monitoring and Performance
+{% if sentry_dsn %}
+SENTRY_DSN={{ sentry_dsn }}
+{% endif %}
+MONITORING_ENABLED={{ monitoring_enabled | lower }}
+
+# Oracle Cloud Infrastructure
+OCI_REGION={{ oci_region }}
+OCI_COMPARTMENT_ID={{ oci_compartment_id }}
+OBJECT_STORAGE_NAMESPACE={{ object_storage_namespace }}
+STATIC_FILES_BUCKET={{ static_files_bucket }}
+BACKUP_BUCKET={{ backup_bucket }}
+
+# File Upload Settings
+MAX_UPLOAD_SIZE={{ file_upload_settings.max_upload_size }}
+ALLOWED_EXTENSIONS={{ file_upload_settings.allowed_extensions | join(',') }}
+UPLOAD_PATH={{ file_upload_settings.upload_path }}
+
+# Environment-specific settings
+{% if environment == 'development' %}
+# Development specific settings
+CORS_ALLOW_ALL_ORIGINS=true
+CSRF_COOKIE_SECURE=false
+SESSION_COOKIE_SECURE=false
+{% elif environment == 'production' %}
+# Production specific settings
+SECURE_SSL_REDIRECT=true
+SECURE_PROXY_SSL_HEADER=HTTP_X_FORWARDED_PROTO,https
+{% endif %}
+
+# Application URLs
+{% if environment == 'development' %}
+FRONTEND_URL=http://localhost:3000
+BACKEND_URL=http://localhost:8000
+{% elif environment == 'staging' %}
+FRONTEND_URL=https://staging-library.oraclecloud.com
+BACKEND_URL=https://staging-api-library.oraclecloud.com
+{% else %}
+FRONTEND_URL=https://library.oraclecloud.com
+BACKEND_URL=https://api-library.oraclecloud.com
+{% endif %}
+
+# Health Check Configuration
+HEALTH_CHECK_URL={{ health_check_url }}
+HEALTH_CHECK_TIMEOUT={{ health_check_timeout }}
+
+# Backup Configuration
+BACKUP_ENABLED={{ backup_enabled | lower }}
+{% if backup_enabled %}
+BACKUP_LOCATION={{ backup_location }}
+BACKUP_RETENTION_DAYS={{ backup_retention_days }}
+{% endif %}

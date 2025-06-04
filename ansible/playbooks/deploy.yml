@@ -1,0 +1,432 @@
+---
+# ====================================
+# Django Application Deployment Playbook
+# Zero-Downtime Production Deployment
+# ====================================
+
+- name: "Pre-Deployment Validation and Preparation"
+  hosts: all
+  become: yes
+  gather_facts: yes
+  serial: 1
+  
+  vars:
+    deployment_timestamp: "{{ ansible_date_time.epoch }}"
+    backup_directory: "/var/backups/deployment/{{ deployment_timestamp }}"
+    
+  pre_tasks:
+    - name: "Validate deployment prerequisites"
+      assert:
+        that:
+          - target_environment is defined
+          - app_version is defined
+          - deployment_strategy is defined
+        fail_msg: "Required deployment variables not defined"
+        success_msg: "Deployment prerequisites validated"
+      tags: ['validation', 'always']
+    
+    - name: "Create deployment backup directory"
+      file:
+        path: "{{ backup_directory }}"
+        state: directory
+        mode: '0755'
+      tags: ['backup', 'always']
+    
+    - name: "Log deployment start"
+      lineinfile:
+        path: "/var/log/ansible-deployment/deployment.log"
+        line: "{{ ansible_date_time.iso8601 }} - Starting deployment {{ app_version }} to {{ target_environment }}"
+        create: yes
+      tags: ['logging', 'always']
+
+# ==============================================
+# BACKUP CURRENT APPLICATION
+# ==============================================
+- name: "Backup Current Application"
+  hosts: webservers
+  become: yes
+  gather_facts: no
+  serial: 1
+  
+  tasks:
+    - name: "Create application backup"
+      archive:
+        path: "{{ app_home }}"
+        dest: "{{ backup_directory }}/app_backup_{{ inventory_hostname }}.tar.gz"
+        format: gz
+        exclude_path:
+          - "{{ app_home }}/logs"
+          - "{{ app_home }}/venv"
+      tags: ['backup']
+    
+    - name: "Backup database configuration"
+      copy:
+        src: "{{ oracle_wallet_location }}"
+        dest: "{{ backup_directory }}/wallet_backup_{{ inventory_hostname }}"
+        remote_src: yes
+      when: oracle_wallet_location is defined
+      tags: ['backup', 'database']
+    
+    - name: "Backup Nginx configuration"
+      copy:
+        src: "/etc/nginx"
+        dest: "{{ backup_directory }}/nginx_backup_{{ inventory_hostname }}"
+        remote_src: yes
+      when: "'webservers' in group_names"
+      tags: ['backup', 'nginx']
+
+# ==============================================
+# HEALTH CHECK BEFORE DEPLOYMENT
+# ==============================================
+- name: "Pre-Deployment Health Check"
+  hosts: webservers
+  become: no
+  gather_facts: no
+  
+  tasks:
+    - name: "Check application health"
+      uri:
+        url: "http://{{ inventory_hostname }}:8000/health/"
+        method: GET
+        timeout: 30
+      register: pre_health_check
+      failed_when: false
+      tags: ['health-check']
+    
+    - name: "Check database connectivity"
+      uri:
+        url: "http://{{ inventory_hostname }}:8000/api/v1/health/database/"
+        method: GET
+        timeout: 30
+      register: pre_db_check
+      failed_when: false
+      tags: ['health-check', 'database']
+    
+    - name: "Record pre-deployment health status"
+      debug:
+        msg: |
+          Pre-deployment Health Status:
+          - Application: {{ pre_health_check.status | default('Unavailable') }}
+          - Database: {{ pre_db_check.status | default('Unavailable') }}
+
+# ==============================================
+# ROLLING DEPLOYMENT - WEBSERVERS
+# ==============================================
+- name: "Rolling Deployment - Web Servers"
+  hosts: webservers
+  become: yes
+  gather_facts: no
+  serial: "{{ deployment_strategy | default('50%') }}"
+  
+  tasks:
+    - name: "Remove server from load balancer"
+      uri:
+        url: "http://{{ hostvars[groups['loadbalancer'][0]]['ansible_host'] }}/health/remove/{{ inventory_hostname }}"
+        method: POST
+        timeout: 10
+      delegate_to: "{{ groups['loadbalancer'][0] }}"
+      when: groups['loadbalancer'] is defined
+      failed_when: false
+      tags: ['deployment', 'load-balancer']
+    
+    - name: "Wait for connections to drain"
+      wait_for:
+        timeout: 30
+      tags: ['deployment', 'drain']
+    
+    - name: "Stop application services"
+      systemd:
+        name: "{{ item }}"
+        state: stopped
+      with_items:
+        - gunicorn
+        - celery
+        - celerybeat
+      tags: ['deployment', 'stop-services']
+    
+    - name: "Pull latest application code"
+      git:
+        repo: "{{ app_repository_url }}"
+        dest: "{{ app_home }}/source"
+        version: "{{ app_version }}"
+        force: yes
+      become_user: "{{ app_user }}"
+      when: app_repository_url is defined
+      notify: restart gunicorn
+      tags: ['deployment', 'code-update']
+    
+    - name: "Update Python dependencies"
+      pip:
+        requirements: "{{ app_home }}/source/requirements.txt"
+        virtualenv: "{{ app_home }}/venv"
+        state: present
+      become_user: "{{ app_user }}"
+      tags: ['deployment', 'dependencies']
+    
+    - name: "Run database migrations"
+      django_manage:
+        command: migrate
+        app_path: "{{ app_home }}/source"
+        virtualenv: "{{ app_home }}/venv"
+        settings: "{{ django_settings_module }}"
+      become_user: "{{ app_user }}"
+      environment:
+        DJANGO_SETTINGS_MODULE: "{{ django_settings_module }}"
+      tags: ['deployment', 'migrations']
+    
+    - name: "Collect static files"
+      django_manage:
+        command: collectstatic
+        app_path: "{{ app_home }}/source"
+        virtualenv: "{{ app_home }}/venv"
+        settings: "{{ django_settings_module }}"
+      become_user: "{{ app_user }}"
+      environment:
+        DJANGO_SETTINGS_MODULE: "{{ django_settings_module }}"
+      tags: ['deployment', 'static-files']
+    
+    - name: "Update configuration files"
+      template:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: "{{ item.mode | default('0644') }}"
+      with_items:
+        - { src: "django_env.j2", dest: "{{ app_home }}/.env", mode: "0600" }
+        - { src: "gunicorn.conf.py.j2", dest: "{{ app_home }}/config/gunicorn.conf.py" }
+      tags: ['deployment', 'configuration']
+    
+    - name: "Start application services"
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      with_items:
+        - gunicorn
+        - celery
+        - celerybeat
+      tags: ['deployment', 'start-services']
+    
+    - name: "Wait for application to be ready"
+      uri:
+        url: "http://{{ inventory_hostname }}:8000/health/"
+        method: GET
+        timeout: 30
+        status_code: 200
+      register: app_ready_check
+      retries: 10
+      delay: 5
+      tags: ['deployment', 'health-check']
+    
+    - name: "Add server back to load balancer"
+      uri:
+        url: "http://{{ hostvars[groups['loadbalancer'][0]]['ansible_host'] }}/health/add/{{ inventory_hostname }}"
+        method: POST
+        timeout: 10
+      delegate_to: "{{ groups['loadbalancer'][0] }}"
+      when: 
+        - groups['loadbalancer'] is defined
+        - app_ready_check.status == 200
+      tags: ['deployment', 'load-balancer']
+    
+    - name: "Verify server is receiving traffic"
+      uri:
+        url: "http://{{ inventory_hostname }}:8000/api/v1/health/"
+        method: GET
+        timeout: 10
+      register: traffic_check
+      retries: 3
+      delay: 10
+      tags: ['deployment', 'verification']
+
+# ==============================================
+# UPDATE LOAD BALANCER CONFIGURATION
+# ==============================================
+- name: "Update Load Balancer Configuration"
+  hosts: loadbalancer
+  become: yes
+  gather_facts: no
+  
+  tasks:
+    - name: "Update Nginx configuration"
+      template:
+        src: loadbalancer.conf.j2
+        dest: "/etc/nginx/sites-available/{{ app_name }}-lb.conf"
+        owner: root
+        group: root
+        mode: '0644'
+        validate: 'nginx -t'
+      notify: reload nginx
+      tags: ['deployment', 'load-balancer']
+    
+    - name: "Test Nginx configuration"
+      command: nginx -t
+      register: nginx_test
+      failed_when: nginx_test.rc != 0
+      tags: ['deployment', 'load-balancer']
+    
+    - name: "Reload Nginx configuration"
+      systemd:
+        name: nginx
+        state: reloaded
+      when: nginx_test.rc == 0
+      tags: ['deployment', 'load-balancer']
+
+# ==============================================
+# POST-DEPLOYMENT VERIFICATION
+# ==============================================
+- name: "Post-Deployment Verification"
+  hosts: localhost
+  become: no
+  gather_facts: no
+  
+  tasks:
+    - name: "Comprehensive health check"
+      uri:
+        url: "https://{{ load_balancer_fqdn }}/api/v1/health/"
+        method: GET
+        timeout: 30
+        validate_certs: "{{ validate_ssl_certs | default(true) }}"
+      register: final_health_check
+      retries: 5
+      delay: 10
+      tags: ['verification', 'health-check']
+    
+    - name: "Test API endpoints"
+      uri:
+        url: "https://{{ load_balancer_fqdn }}/api/v1/{{ item }}/"
+        method: GET
+        timeout: 30
+        status_code: [200, 401, 403]  # 401/403 acceptable for protected endpoints
+        validate_certs: "{{ validate_ssl_certs | default(true) }}"
+      with_items:
+        - "books"
+        - "auth/profile"
+        - "analytics/dashboard"
+      register: api_tests
+      tags: ['verification', 'api']
+    
+    - name: "Database connectivity test"
+      uri:
+        url: "https://{{ load_balancer_fqdn }}/api/v1/health/database/"
+        method: GET
+        timeout: 30
+        validate_certs: "{{ validate_ssl_certs | default(true) }}"
+      register: final_db_check
+      tags: ['verification', 'database']
+    
+    - name: "Performance baseline test"
+      uri:
+        url: "https://{{ load_balancer_fqdn }}/api/v1/books/"
+        method: GET
+        timeout: 30
+        validate_certs: "{{ validate_ssl_certs | default(true) }}"
+      register: performance_test
+      tags: ['verification', 'performance']
+    
+    - name: "Generate deployment report"
+      template:
+        src: deployment_report.j2
+        dest: "/tmp/deployment_report_{{ deployment_timestamp }}.txt"
+      delegate_to: localhost
+      tags: ['reporting']
+
+# ==============================================
+# NOTIFICATION AND CLEANUP
+# ==============================================
+- name: "Post-Deployment Notification"
+  hosts: localhost
+  become: no
+  gather_facts: no
+  
+  tasks:
+    - name: "Send success notification"
+      mail:
+        to: "{{ notification_email }}"
+        subject: "Deployment SUCCESS - {{ target_environment | title }}"
+        body: |
+          Deployment completed successfully!
+          
+          Environment: {{ target_environment }}
+          Version: {{ app_version }}
+          Strategy: {{ deployment_strategy }}
+          Timestamp: {{ ansible_date_time.iso8601 }}
+          
+          Health Check Status: {{ final_health_check.status }}
+          Database Status: {{ final_db_check.status }}
+          Performance Test: {{ performance_test.elapsed }} seconds
+          
+          All services are operational.
+          
+          Deployment Report: /tmp/deployment_report_{{ deployment_timestamp }}.txt
+      when: 
+        - notification_email is defined
+        - final_health_check.status == 200
+        - final_db_check.status == 200
+      tags: ['notification']
+    
+    - name: "Clean up old backups"
+      shell: find /var/backups/deployment -type d -mtime +{{ backup_retention_days | default(7) }} -exec rm -rf {} \;
+      become: yes
+      tags: ['cleanup']
+    
+    - name: "Update deployment tracking"
+      lineinfile:
+        path: "/var/log/ansible-deployment/deployment.log"
+        line: "{{ ansible_date_time.iso8601 }} - Deployment {{ app_version }} to {{ target_environment }} completed successfully"
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['all'] }}"
+      become: yes
+      tags: ['logging']
+
+# ==============================================
+# ROLLBACK HANDLER (ON FAILURE)
+# ==============================================
+- name: "Deployment Rollback Handler"
+  hosts: webservers
+  become: yes
+  gather_facts: no
+  
+  tasks:
+    - name: "Rollback application"
+      include_tasks: tasks/rollback.yml
+      when: 
+        - deployment_failed is defined
+        - deployment_failed | bool
+        - enable_rollback | default(true)
+      tags: ['rollback', 'never']
+    
+    - name: "Send failure notification"
+      mail:
+        to: "{{ notification_email }}"
+        subject: "Deployment FAILED - {{ target_environment | title }}"
+        body: |
+          Deployment FAILED!
+          
+          Environment: {{ target_environment }}
+          Version: {{ app_version }}
+          Timestamp: {{ ansible_date_time.iso8601 }}
+          
+          Rollback initiated: {{ enable_rollback | default(true) }}
+          
+          Please check deployment logs for details.
+      when: 
+        - deployment_failed is defined
+        - deployment_failed | bool
+        - notification_email is defined
+      delegate_to: localhost
+      tags: ['notification', 'failure']
+
+  handlers:
+    - name: restart gunicorn
+      systemd:
+        name: gunicorn
+        state: restarted
+        daemon_reload: yes
+    
+    - name: reload nginx
+      systemd:
+        name: nginx
+        state: reloaded

@@ -1,0 +1,381 @@
+---
+# ====================================
+# Common Role Main Tasks
+# System Setup and Security Hardening
+# ====================================
+
+- name: "System Information Gathering"
+  setup:
+    gather_subset:
+      - "!all"
+      - "min"
+      - "network"
+      - "hardware"
+      - "virtual"
+      - "facter"
+  tags: ['always', 'facts']
+
+- name: "System Setup - Update package cache"
+  dnf:
+    update_cache: yes
+    cache_valid_time: 3600
+  when: ansible_os_family == "RedHat"
+  tags: ['packages', 'cache']
+
+- name: "System Setup - Install essential packages"
+  dnf:
+    name:
+      # System utilities
+      - vim
+      - wget
+      - curl
+      - git
+      - htop
+      - tree
+      - unzip
+      - tar
+      - gzip
+      
+      # Network utilities
+      - net-tools
+      - telnet
+      - nmap-ncat
+      - bind-utils
+      - traceroute
+      
+      # Security packages
+      - fail2ban
+      - firewalld
+      - policycoreutils-python-utils
+      - setools-console
+      
+      # Monitoring and logging
+      - rsyslog
+      - logrotate
+      - cronie
+      - chrony
+      
+      # Development tools
+      - gcc
+      - gcc-c++
+      - make
+      - openssl-devel
+      - libffi-devel
+      - zlib-devel
+      - bzip2-devel
+      - readline-devel
+      - sqlite-devel
+      
+      # Python essentials
+      - python3
+      - python3-pip
+      - python3-devel
+      - python3-setuptools
+      - python3-wheel
+      
+    state: present
+  tags: ['packages', 'essential']
+
+- name: "System Setup - Install Oracle Linux specific packages"
+  dnf:
+    name:
+      - oracle-linux-release-el8
+      - oraclelinux-developer-release-el8
+      - oracle-epel-release-el8
+    state: present
+  when: ansible_distribution == "OracleLinux"
+  tags: ['packages', 'oracle']
+
+- name: "System Configuration - Set timezone"
+  timezone:
+    name: "{{ system_timezone | default('UTC') }}"
+  notify: restart chrony
+  tags: ['system', 'timezone']
+
+- name: "System Configuration - Configure NTP"
+  template:
+    src: chrony.conf.j2
+    dest: /etc/chrony.conf
+    backup: yes
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart chrony
+  tags: ['system', 'ntp']
+
+- name: "System Configuration - Start and enable NTP service"
+  systemd:
+    name: chronyd
+    state: started
+    enabled: yes
+  tags: ['system', 'ntp']
+
+- name: "User Management - Create application user"
+  user:
+    name: "{{ app_user | default('libraryapp') }}"
+    group: "{{ app_group | default('libraryapp') }}"
+    home: "{{ app_home | default('/opt/library-system') }}"
+    shell: /bin/bash
+    system: yes
+    create_home: yes
+    state: present
+  tags: ['users', 'application']
+
+- name: "User Management - Create application group"
+  group:
+    name: "{{ app_group | default('libraryapp') }}"
+    state: present
+  tags: ['users', 'application']
+
+- name: "User Management - Add application user to wheel group"
+  user:
+    name: "{{ app_user | default('libraryapp') }}"
+    groups: wheel
+    append: yes
+  when: app_user_sudo | default(false)
+  tags: ['users', 'sudo']
+
+- name: "SSH Configuration - Secure SSH daemon"
+  template:
+    src: sshd_config.j2
+    dest: /etc/ssh/sshd_config
+    backup: yes
+    owner: root
+    group: root
+    mode: '0600'
+    validate: '/usr/sbin/sshd -T -f %s'
+  notify: restart sshd
+  tags: ['ssh', 'security']
+
+- name: "SSH Configuration - Disable root login"
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: '^PermitRootLogin'
+    line: 'PermitRootLogin no'
+    backup: yes
+  notify: restart sshd
+  when: disable_root_login | default(true)
+  tags: ['ssh', 'security']
+
+- name: "SSH Configuration - Configure SSH key authentication"
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    backup: yes
+  with_items:
+    - { regexp: '^PubkeyAuthentication', line: 'PubkeyAuthentication yes' }
+    - { regexp: '^PasswordAuthentication', line: 'PasswordAuthentication no' }
+    - { regexp: '^ChallengeResponseAuthentication', line: 'ChallengeResponseAuthentication no' }
+    - { regexp: '^UsePAM', line: 'UsePAM yes' }
+  notify: restart sshd
+  tags: ['ssh', 'security']
+
+- name: "Firewall Configuration - Install and start firewalld"
+  systemd:
+    name: firewalld
+    state: started
+    enabled: yes
+  tags: ['firewall', 'security']
+
+- name: "Firewall Configuration - Configure basic rules"
+  firewalld:
+    service: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - ssh
+    - http
+    - https
+  tags: ['firewall', 'security']
+
+- name: "Firewall Configuration - Open custom ports"
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items: "{{ custom_firewall_ports | default([]) }}"
+  tags: ['firewall', 'custom']
+
+- name: "Security - Configure fail2ban"
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    backup: yes
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart fail2ban
+  tags: ['security', 'fail2ban']
+
+- name: "Security - Start and enable fail2ban"
+  systemd:
+    name: fail2ban
+    state: started
+    enabled: yes
+  tags: ['security', 'fail2ban']
+
+- name: "SELinux Configuration - Set SELinux policy"
+  selinux:
+    policy: targeted
+    state: "{{ selinux_state | default('enforcing') }}"
+  when: ansible_selinux.status != "disabled"
+  tags: ['security', 'selinux']
+
+- name: "System Tuning - Configure kernel parameters"
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: yes
+    sysctl_file: /etc/sysctl.d/99-library-system.conf
+    reload: yes
+  with_items:
+    - { name: 'vm.swappiness', value: '10' }
+    - { name: 'net.core.rmem_max', value: '134217728' }
+    - { name: 'net.core.wmem_max', value: '134217728' }
+    - { name: 'net.ipv4.tcp_rmem', value: '4096 65536 134217728' }
+    - { name: 'net.ipv4.tcp_wmem', value: '4096 65536 134217728' }
+    - { name: 'net.core.netdev_max_backlog', value: '5000' }
+    - { name: 'net.ipv4.tcp_congestion_control', value: 'bbr' }
+    - { name: 'fs.file-max', value: '1000000' }
+    - { name: 'net.ipv4.ip_local_port_range', value: '1024 65535' }
+  tags: ['system', 'tuning']
+
+- name: "System Tuning - Configure systemd limits"
+  template:
+    src: system.conf.j2
+    dest: /etc/systemd/system.conf.d/99-library-system.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload systemd
+  tags: ['system', 'limits']
+
+- name: "Logging Configuration - Configure rsyslog"
+  template:
+    src: rsyslog.conf.j2
+    dest: /etc/rsyslog.conf
+    backup: yes
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart rsyslog
+  tags: ['logging', 'rsyslog']
+
+- name: "Logging Configuration - Create application log directory"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user | default('libraryapp') }}"
+    group: "{{ app_group | default('libraryapp') }}"
+    mode: '0755'
+  with_items:
+    - /var/log/library-system
+    - /var/log/library-system/application
+    - /var/log/library-system/access
+    - /var/log/library-system/error
+  tags: ['logging', 'directories']
+
+- name: "Logging Configuration - Configure log rotation"
+  template:
+    src: logrotate.conf.j2
+    dest: /etc/logrotate.d/library-system
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['logging', 'rotation']
+
+- name: "System Cleanup - Remove unnecessary packages"
+  dnf:
+    name:
+      - sendmail
+      - postfix
+    state: absent
+  when: cleanup_unnecessary_packages | default(true)
+  tags: ['cleanup', 'packages']
+
+- name: "System Cleanup - Clean package cache"
+  dnf:
+    autoremove: yes
+  tags: ['cleanup', 'cache']
+
+- name: "Monitoring Setup - Create monitoring directories"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+  with_items:
+    - /etc/monitoring
+    - /var/lib/monitoring
+    - /var/log/monitoring
+  tags: ['monitoring', 'directories']
+
+- name: "Cron Configuration - Setup system maintenance cron jobs"
+  cron:
+    name: "{{ item.name }}"
+    minute: "{{ item.minute }}"
+    hour: "{{ item.hour }}"
+    day: "{{ item.day }}"
+    job: "{{ item.job }}"
+    user: root
+  with_items:
+    - name: "System update check"
+      minute: "0"
+      hour: "2"
+      day: "*"
+      job: "/usr/bin/dnf check-update > /dev/null 2>&1"
+    - name: "Log cleanup"
+      minute: "30"
+      hour: "3"
+      day: "*"
+      job: "/usr/sbin/logrotate /etc/logrotate.conf"
+    - name: "Security scan"
+      minute: "0"
+      hour: "4"
+      day: "*"
+      job: "/usr/bin/clamscan -r /home /opt --quiet"
+  when: enable_maintenance_crons | default(true)
+  tags: ['cron', 'maintenance']
+
+- name: "System Verification - Verify essential services"
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  with_items:
+    - chronyd
+    - firewalld
+    - fail2ban
+    - rsyslog
+    - crond
+  tags: ['verification', 'services']
+
+- name: "System Verification - Check disk space"
+  shell: df -h / | tail -1 | awk '{print $5}' | sed 's/%//'
+  register: disk_usage
+  failed_when: disk_usage.stdout | int > 85
+  tags: ['verification', 'disk']
+
+- name: "System Verification - Check memory usage"
+  shell: free | grep Mem | awk '{printf "%.0f", $3/$2 * 100.0}'
+  register: memory_usage
+  failed_when: memory_usage.stdout | int > 90
+  tags: ['verification', 'memory']
+
+- name: "System Information - Display system status"
+  debug:
+    msg: |
+      System Configuration Complete:
+      - Hostname: {{ ansible_hostname }}
+      - OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+      - Kernel: {{ ansible_kernel }}
+      - Memory: {{ ansible_memtotal_mb }}MB
+      - Disk Usage: {{ disk_usage.stdout }}%
+      - Memory Usage: {{ memory_usage.stdout }}%
+      - Timezone: {{ ansible_date_time.tz }}
+      - Application User: {{ app_user | default('libraryapp') }}
+  tags: ['information', 'status']

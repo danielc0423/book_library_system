@@ -1,0 +1,372 @@
+---
+# ====================================
+# Python Role Main Tasks
+# Django Application Deployment
+# ====================================
+
+- name: "Python Setup - Verify Python installation"
+  command: python3 --version
+  register: python_version
+  changed_when: false
+  tags: ['python', 'verification']
+
+- name: "Python Setup - Install Python development packages"
+  dnf:
+    name:
+      - python3
+      - python3-pip
+      - python3-devel
+      - python3-setuptools
+      - python3-wheel
+      - python3-venv
+      - gcc
+      - gcc-c++
+      - make
+      - openssl-devel
+      - libffi-devel
+      - zlib-devel
+      - bzip2-devel
+      - readline-devel
+      - sqlite-devel
+      - git
+    state: present
+  tags: ['python', 'packages']
+
+- name: "Python Setup - Install pip and setuptools"
+  pip:
+    name:
+      - pip
+      - setuptools
+      - wheel
+      - virtualenv
+    state: latest
+    executable: pip3
+  tags: ['python', 'pip']
+
+- name: "Application Setup - Create application directory structure"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0755'
+  with_items:
+    - "{{ app_home }}"
+    - "{{ app_home }}/source"
+    - "{{ app_home }}/logs"
+    - "{{ app_home }}/static"
+    - "{{ app_home }}/media"
+    - "{{ app_home }}/backups"
+    - "{{ app_home }}/scripts"
+    - "{{ app_home }}/config"
+    - "/var/log/library-system"
+    - "/var/log/library-system/application"
+    - "/var/log/library-system/celery"
+    - "/var/log/library-system/gunicorn"
+  tags: ['application', 'directories']
+
+- name: "Application Setup - Create Python virtual environment"
+  command: python3 -m venv {{ app_home }}/venv
+  args:
+    creates: "{{ app_home }}/venv/bin/activate"
+  become_user: "{{ app_user }}"
+  tags: ['python', 'virtualenv']
+
+- name: "Application Setup - Upgrade pip in virtual environment"
+  pip:
+    name: pip
+    state: latest
+    virtualenv: "{{ app_home }}/venv"
+    virtualenv_python: python3
+  become_user: "{{ app_user }}"
+  tags: ['python', 'pip']
+
+- name: "Git Setup - Clone application repository"
+  git:
+    repo: "{{ app_repository_url }}"
+    dest: "{{ app_home }}/source"
+    version: "{{ app_version | default('main') }}"
+    force: yes
+  become_user: "{{ app_user }}"
+  when: app_repository_url is defined
+  notify: restart gunicorn
+  tags: ['application', 'git']
+
+- name: "Application Setup - Install Python requirements"
+  pip:
+    requirements: "{{ app_home }}/source/requirements.txt"
+    virtualenv: "{{ app_home }}/venv"
+    virtualenv_python: python3
+    state: present
+  become_user: "{{ app_user }}"
+  when: app_from_git | default(false)
+  notify: restart gunicorn
+  tags: ['application', 'pip', 'requirements']
+
+- name: "Application Setup - Install Django and dependencies directly"
+  pip:
+    name:
+      # Core Django
+      - Django==4.2.13
+      - djangorestframework==3.14.0
+      - django-cors-headers==4.0.0
+      - djangorestframework-simplejwt==5.2.2
+      
+      # Database
+      - cx_Oracle==8.3.0
+      - oracledb==1.4.2
+      
+      # Environment and Configuration
+      - python-decouple==3.8
+      - django-environ==0.10.0
+      
+      # API Documentation
+      - drf-spectacular==0.26.2
+      - django-extensions==3.2.3
+      
+      # Task Queue
+      - celery[redis]==5.3.0
+      - redis==4.5.5
+      - django-celery-beat==2.5.0
+      - django-celery-results==2.5.0
+      
+      # Filtering and Pagination
+      - django-filter==23.2
+      - django-rest-pagination==0.1.1
+      
+      # File handling and utilities
+      - Pillow==10.0.0
+      - python-dateutil==2.8.2
+      - requests==2.31.0
+      - urllib3==2.0.3
+      
+      # WSGI Server
+      - gunicorn==20.1.0
+      - whitenoise==6.5.0
+      
+      # Development and Testing
+      - pytest==7.4.0
+      - pytest-django==4.5.2
+      - factory-boy==3.2.1
+      - coverage==7.2.7
+      
+      # Security
+      - cryptography==41.0.1
+      - bcrypt==4.0.1
+      
+      # Monitoring and Logging
+      - sentry-sdk==1.25.1
+      - django-health-check==3.17.0
+      
+    virtualenv: "{{ app_home }}/venv"
+    state: present
+  become_user: "{{ app_user }}"
+  when: not (app_from_git | default(false))
+  notify: restart gunicorn
+  tags: ['application', 'pip', 'django']
+
+- name: "Configuration - Create Django environment file"
+  template:
+    src: django_env.j2
+    dest: "{{ app_home }}/.env"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0600'
+  notify: restart gunicorn
+  tags: ['application', 'configuration']
+
+- name: "Configuration - Create Django settings file"
+  template:
+    src: django_settings.py.j2
+    dest: "{{ app_home }}/config/settings.py"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0644'
+  notify: restart gunicorn
+  tags: ['application', 'configuration']
+
+- name: "Database Setup - Run Django migrations"
+  django_manage:
+    command: migrate
+    app_path: "{{ app_home }}/source"
+    virtualenv: "{{ app_home }}/venv"
+    settings: "{{ django_settings_module }}"
+  become_user: "{{ app_user }}"
+  environment:
+    DJANGO_SETTINGS_MODULE: "{{ django_settings_module }}"
+  tags: ['application', 'database', 'migration']
+
+- name: "Static Files - Collect Django static files"
+  django_manage:
+    command: collectstatic
+    app_path: "{{ app_home }}/source"
+    virtualenv: "{{ app_home }}/venv"
+    settings: "{{ django_settings_module }}"
+  become_user: "{{ app_user }}"
+  environment:
+    DJANGO_SETTINGS_MODULE: "{{ django_settings_module }}"
+  tags: ['application', 'static']
+
+- name: "Database Setup - Create Django superuser"
+  django_manage:
+    command: "createsuperuser --noinput --username={{ django_admin_username }} --email={{ django_admin_email }}"
+    app_path: "{{ app_home }}/source"
+    virtualenv: "{{ app_home }}/venv"
+    settings: "{{ django_settings_module }}"
+  become_user: "{{ app_user }}"
+  environment:
+    DJANGO_SETTINGS_MODULE: "{{ django_settings_module }}"
+    DJANGO_SUPERUSER_PASSWORD: "{{ django_admin_password }}"
+  when: create_django_superuser | default(true)
+  failed_when: false
+  tags: ['application', 'admin']
+
+- name: "Service Configuration - Create Gunicorn systemd service"
+  template:
+    src: gunicorn.service.j2
+    dest: /etc/systemd/system/gunicorn.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart gunicorn
+  tags: ['application', 'service', 'gunicorn']
+
+- name: "Service Configuration - Create Gunicorn configuration"
+  template:
+    src: gunicorn.conf.py.j2
+    dest: "{{ app_home }}/config/gunicorn.conf.py"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0644'
+  notify: restart gunicorn
+  tags: ['application', 'configuration', 'gunicorn']
+
+- name: "Service Configuration - Create Celery systemd services"
+  template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: '0644'
+  with_items:
+    - celery.service
+    - celerybeat.service
+  notify:
+    - reload systemd
+    - restart celery
+    - restart celerybeat
+  when: celery_enabled | default(true)
+  tags: ['application', 'service', 'celery']
+
+- name: "Service Configuration - Create Celery configuration"
+  template:
+    src: celery.conf.py.j2
+    dest: "{{ app_home }}/config/celery.conf.py"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0644'
+  notify:
+    - restart celery
+    - restart celerybeat
+  when: celery_enabled | default(true)
+  tags: ['application', 'configuration', 'celery']
+
+- name: "Log Configuration - Create log rotation configuration"
+  template:
+    src: django_logrotate.j2
+    dest: /etc/logrotate.d/django-library-system
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['application', 'logging']
+
+- name: "Service Management - Start and enable application services"
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  with_items:
+    - gunicorn
+  tags: ['application', 'service']
+
+- name: "Service Management - Start and enable Celery services"
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  with_items:
+    - celery
+    - celerybeat
+  when: celery_enabled | default(true)
+  tags: ['application', 'service', 'celery']
+
+- name: "Health Check - Verify application health"
+  uri:
+    url: "http://localhost:{{ gunicorn_bind_port }}/health/"
+    method: GET
+    timeout: 30
+  register: health_check
+  retries: 5
+  delay: 10
+  tags: ['application', 'health']
+
+- name: "Security - Set file permissions"
+  file:
+    path: "{{ item.path }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+    recurse: "{{ item.recurse | default(false) }}"
+  with_items:
+    - { path: "{{ app_home }}", owner: "{{ app_user }}", group: "{{ app_group }}", mode: '0755', recurse: true }
+    - { path: "{{ app_home }}/.env", owner: "{{ app_user }}", group: "{{ app_group }}", mode: '0600' }
+    - { path: "{{ app_home }}/logs", owner: "{{ app_user }}", group: "{{ app_group }}", mode: '0755' }
+    - { path: "/var/log/library-system", owner: "{{ app_user }}", group: "{{ app_group }}", mode: '0755', recurse: true }
+  tags: ['application', 'security', 'permissions']
+
+- name: "Backup Setup - Create backup script"
+  template:
+    src: backup_script.sh.j2
+    dest: "{{ app_home }}/scripts/backup.sh"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0755'
+  tags: ['application', 'backup']
+
+- name: "Backup Setup - Schedule backup cron job"
+  cron:
+    name: "Django application backup"
+    minute: "0"
+    hour: "2"
+    day: "*"
+    job: "{{ app_home }}/scripts/backup.sh > /var/log/library-system/backup.log 2>&1"
+    user: "{{ app_user }}"
+  when: backup_enabled | default(true)
+  tags: ['application', 'backup', 'cron']
+
+- name: "Monitoring Setup - Create health check script"
+  template:
+    src: health_check.sh.j2
+    dest: "{{ app_home }}/scripts/health_check.sh"
+    owner: "{{ app_user }}"
+    group: "{{ app_group }}"
+    mode: '0755'
+  tags: ['application', 'monitoring']
+
+- name: "Application Info - Display deployment status"
+  debug:
+    msg: |
+      Django Application Deployment Complete:
+      - Application Path: {{ app_home }}
+      - Virtual Environment: {{ app_home }}/venv
+      - Python Version: {{ python_version.stdout }}
+      - Django Settings: {{ django_settings_module }}
+      - Gunicorn Port: {{ gunicorn_bind_port }}
+      - Celery Enabled: {{ celery_enabled | default(true) }}
+      - Health Check: {{ health_check.status | default('Unknown') }}
+      - Application User: {{ app_user }}
+  tags: ['application', 'info']

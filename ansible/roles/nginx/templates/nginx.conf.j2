@@ -1,0 +1,174 @@
+# ====================================
+# Nginx Main Configuration Template
+# High Performance Web Server Configuration
+# Command 7: Ansible Configuration Management
+# ====================================
+
+user {{ nginx_user }};
+worker_processes {{ nginx_worker_processes }};
+worker_rlimit_nofile {{ nginx_worker_rlimit_nofile }};
+error_log {{ nginx_error_log }};
+pid {{ nginx_pid }};
+
+# Dynamic modules loading
+{% for module in nginx_modules %}
+load_module modules/{{ module }}.so;
+{% endfor %}
+
+events {
+    worker_connections {{ nginx_worker_connections }};
+    use epoll;
+    multi_accept on;
+    accept_mutex off;
+}
+
+http {
+    # Basic Settings
+    include {{ mime_types_file }};
+    default_type {{ default_type }};
+    
+    # Logging Format
+    log_format main '{{ log_format_main }}';
+    log_format detailed '{{ log_format_detailed }}';
+    
+    access_log {{ nginx_access_log }} main;
+    
+    # Server Settings
+    server_tokens {{ nginx_server_tokens }};
+    server_names_hash_bucket_size {{ nginx_server_names_hash_bucket_size }};
+    
+    # Client Settings
+    client_max_body_size {{ nginx_client_max_body_size }};
+    client_body_timeout {{ nginx_client_body_timeout }};
+    client_header_timeout {{ nginx_client_header_timeout }};
+    client_body_buffer_size {{ resource_limits.client_body_buffer_size }};
+    client_header_buffer_size {{ resource_limits.client_header_buffer_size }};
+    large_client_header_buffers {{ resource_limits.large_client_header_buffers }};
+    
+    # Timeout Settings
+    send_timeout {{ nginx_send_timeout }};
+    keepalive_timeout {{ nginx_keepalive_timeout }};
+    keepalive_requests {{ nginx_keepalive_requests }};
+    
+    # Performance Settings
+    sendfile {{ performance_tuning.sendfile }};
+    tcp_nopush {{ performance_tuning.tcp_nopush }};
+    tcp_nodelay {{ performance_tuning.tcp_nodelay }};
+    reset_timedout_connection {{ performance_tuning.reset_timedout_connection }};
+    
+    # File Cache Settings
+    open_file_cache {{ performance_tuning.open_file_cache }};
+    open_file_cache_valid {{ performance_tuning.open_file_cache_valid }};
+    open_file_cache_min_uses {{ performance_tuning.open_file_cache_min_uses }};
+    open_file_cache_errors {{ performance_tuning.open_file_cache_errors }};
+    
+    # Gzip Configuration
+    {% if gzip_enabled %}
+    gzip on;
+    gzip_vary {{ gzip_vary }};
+    gzip_proxied {{ gzip_proxied }};
+    gzip_comp_level {{ gzip_comp_level }};
+    gzip_types
+    {% for type in gzip_types %}
+        {{ type }}{% if not loop.last %}{% endif %}
+    {% endfor %};
+    {% else %}
+    gzip off;
+    {% endif %}
+    
+    # Proxy Cache Configuration
+    {% if proxy_cache_enabled %}
+    proxy_cache_path {{ proxy_cache_path }} levels={{ proxy_cache_levels }} 
+                     keys_zone={{ proxy_cache_keys_zone }} max_size={{ proxy_cache_max_size }} 
+                     inactive={{ proxy_cache_inactive }} use_temp_path={{ proxy_cache_use_temp_path }};
+    {% endif %}
+    
+    # Rate Limiting Configuration
+    {% if rate_limit_enabled %}
+    {% for zone, config in rate_limit_zones.items() %}
+    limit_req_zone $binary_remote_addr zone={{ zone }}:{{ config }};
+    {% endfor %}
+    {% endif %}
+    
+    # Real IP Configuration (for Oracle Cloud Load Balancer)
+    {% if oracle_cloud_integration.load_balancer_integration %}
+    set_real_ip_from 10.0.0.0/8;
+    set_real_ip_from 172.16.0.0/12;
+    set_real_ip_from 192.168.0.0/16;
+    real_ip_header X-Forwarded-For;
+    real_ip_recursive on;
+    {% endif %}
+    
+    # Map for maintenance mode
+    {% if maintenance_mode.enabled %}
+    map $remote_addr $maintenance {
+        default 1;
+        {% for ip in maintenance_mode.allowed_ips %}
+        {{ ip }} 0;
+        {% endfor %}
+    }
+    {% endif %}
+    
+    # Upstream Configuration
+    upstream django_backend {
+        {% if lb_method == 'least_conn' %}
+        least_conn;
+        {% elif lb_method == 'ip_hash' %}
+        ip_hash;
+        {% elif lb_method == 'hash' %}
+        hash $remote_addr consistent;
+        {% endif %}
+        
+        {% for server in backend_servers %}
+        server {{ server }} max_fails={{ lb_max_fails }} fail_timeout={{ lb_fail_timeout }};
+        {% endfor %}
+        
+        keepalive {{ lb_keepalive }};
+    }
+    
+    # Default Server Block (catch-all)
+    server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        server_name _;
+        
+        # Security: Return 444 for unknown hosts
+        return 444;
+    }
+    
+    # SSL Default Server Block
+    {% if ssl_enabled %}
+    server {
+        listen 443 ssl http2 default_server;
+        listen [::]:443 ssl http2 default_server;
+        server_name _;
+        
+        ssl_certificate {{ ssl_certificate_path }};
+        ssl_certificate_key {{ ssl_private_key_path }};
+        
+        return 444;
+    }
+    {% endif %}
+    
+    # Include additional configuration files
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+}
+
+# Stream Configuration (for TCP/UDP load balancing if needed)
+{% if nginx_stream_enabled | default(false) %}
+stream {
+    upstream database_backend {
+        {% for server in database_servers | default([]) %}
+        server {{ server }};
+        {% endfor %}
+    }
+    
+    server {
+        listen 1521;
+        proxy_pass database_backend;
+        proxy_timeout 1s;
+        proxy_responses 1;
+    }
+}
+{% endif %}

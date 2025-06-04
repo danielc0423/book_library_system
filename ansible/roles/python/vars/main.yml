@@ -1,0 +1,261 @@
+---
+# ====================================
+# Python Role Variables
+# Django Application Configuration
+# Command 7: Ansible Configuration Management
+# ====================================
+
+# Application Configuration
+app_name: "library-system"
+app_user: "libraryapp"
+app_group: "libraryapp"
+app_home: "/opt/library-system"
+app_version: "main"
+app_repository_url: ""  # Set in inventory or group vars
+app_from_git: false  # Set to true if deploying from git
+
+# Python Configuration
+python_version: "3.9"
+virtualenv_path: "{{ app_home }}/venv"
+
+# Django Configuration
+django_settings_module: "library_system.settings.production"
+django_secret_key: "{{ vault_django_secret_key }}"
+django_debug: false
+django_allowed_hosts:
+  - "localhost"
+  - "127.0.0.1"
+  - "*.oraclecloud.com"
+
+# Django Admin Configuration
+create_django_superuser: true
+django_admin_username: "admin"
+django_admin_email: "admin@library-system.com"
+django_admin_password: "{{ vault_django_admin_password }}"
+
+# Database Configuration
+database_engine: "django.db.backends.oracle"
+database_name: "LIBRARY_HIGH"
+database_user: "LIBRARY_USER"
+database_password: "{{ vault_database_password }}"
+database_host: "{{ autonomous_db_connection_string }}"
+database_port: 1522
+database_options:
+  threaded: true
+  encoding: "UTF-8"
+
+# Oracle Database Wallet Configuration
+oracle_wallet_location: "/opt/oracle/wallet"
+oracle_client_version: "19.0.0"
+
+# Gunicorn Configuration
+gunicorn_bind: "0.0.0.0"
+gunicorn_bind_port: 8000
+gunicorn_workers: "{{ ansible_processor_vcpus * 2 + 1 }}"
+gunicorn_worker_class: "sync"
+gunicorn_worker_connections: 1000
+gunicorn_max_requests: 1000
+gunicorn_max_requests_jitter: 100
+gunicorn_timeout: 30
+gunicorn_keepalive: 2
+gunicorn_preload_app: true
+gunicorn_reload: false
+gunicorn_log_level: "info"
+gunicorn_access_log: "/var/log/library-system/gunicorn/access.log"
+gunicorn_error_log: "/var/log/library-system/gunicorn/error.log"
+
+# Celery Configuration
+celery_enabled: true
+redis_host: "localhost"
+redis_port: 6379
+redis_db: 0
+celery_broker_url: "redis://{{ redis_host }}:{{ redis_port }}/{{ redis_db }}"
+celery_result_backend: "redis://{{ redis_host }}:{{ redis_port }}/{{ redis_db }}"
+celery_worker_concurrency: "{{ ansible_processor_vcpus }}"
+celery_worker_max_tasks_per_child: 1000
+celery_task_serializer: "json"
+celery_result_serializer: "json"
+celery_accept_content: ["json"]
+celery_timezone: "UTC"
+celery_beat_schedule: {}
+
+# Static Files Configuration
+static_root: "{{ app_home }}/static"
+media_root: "{{ app_home }}/media"
+static_url: "/static/"
+media_url: "/media/"
+
+# Logging Configuration
+django_log_level: "INFO"
+django_log_file: "/var/log/library-system/application/django.log"
+django_log_max_size: "100MB"
+django_log_backup_count: 5
+
+# Security Configuration
+csrf_cookie_secure: true
+session_cookie_secure: true
+secure_browser_xss_filter: true
+secure_content_type_nosniff: true
+secure_hsts_seconds: 31536000
+secure_hsts_include_subdomains: true
+secure_hsts_preload: true
+
+# CORS Configuration
+cors_allowed_origins: []
+cors_allow_credentials: true
+cors_allow_all_origins: false
+
+# API Configuration
+api_rate_limit: "1000/hour"
+api_throttle_anon: "100/hour"
+api_throttle_user: "1000/hour"
+
+# Email Configuration
+email_backend: "django.core.mail.backends.smtp.EmailBackend"
+email_host: "smtp.oraclecloud.com"
+email_port: 587
+email_use_tls: true
+email_host_user: "{{ vault_email_user }}"
+email_host_password: "{{ vault_email_password }}"
+default_from_email: "noreply@library-system.com"
+
+# Cache Configuration
+cache_backend: "django_redis.cache.RedisCache"
+cache_location: "redis://{{ redis_host }}:{{ redis_port }}/1"
+cache_timeout: 300
+cache_key_prefix: "library_system"
+
+# Oracle Integration Cloud Configuration
+oic_enabled: true
+oic_endpoint: "{{ vault_oic_endpoint }}"
+oic_username: "{{ vault_oic_username }}"
+oic_password: "{{ vault_oic_password }}"
+
+# Oracle Analytics Cloud Configuration
+analytics_enabled: true
+analytics_endpoint: "{{ vault_analytics_endpoint }}"
+analytics_token: "{{ vault_analytics_token }}"
+
+# Backup Configuration
+backup_enabled: true
+backup_location: "{{ app_home }}/backups"
+backup_retention_days: 7
+backup_schedule: "0 2 * * *"
+
+# Health Check Configuration
+health_check_url: "http://localhost:{{ gunicorn_bind_port }}/health/"
+health_check_timeout: 30
+health_check_interval: 60
+
+# Environment-specific Configuration
+development_settings:
+  debug: true
+  log_level: "DEBUG"
+  allowed_hosts: ["*"]
+  cors_allow_all_origins: true
+  csrf_cookie_secure: false
+  session_cookie_secure: false
+
+staging_settings:
+  debug: false
+  log_level: "INFO"
+  allowed_hosts: ["staging.library-system.com"]
+  cors_allow_all_origins: false
+
+production_settings:
+  debug: false
+  log_level: "WARNING"
+  allowed_hosts: ["library-system.com", "*.library-system.com"]
+  cors_allow_all_origins: false
+
+# Django Apps Configuration
+django_installed_apps:
+  - "django.contrib.admin"
+  - "django.contrib.auth"
+  - "django.contrib.contenttypes"
+  - "django.contrib.sessions"
+  - "django.contrib.messages"
+  - "django.contrib.staticfiles"
+  - "rest_framework"
+  - "rest_framework_simplejwt"
+  - "corsheaders"
+  - "drf_spectacular"
+  - "django_filters"
+  - "django_celery_beat"
+  - "django_celery_results"
+  - "health_check"
+  - "books"
+  - "authentication"
+  - "analytics"
+  - "notifications"
+
+# Django Middleware Configuration
+django_middleware:
+  - "django.middleware.security.SecurityMiddleware"
+  - "whitenoise.middleware.WhiteNoiseMiddleware"
+  - "corsheaders.middleware.CorsMiddleware"
+  - "django.contrib.sessions.middleware.SessionMiddleware"
+  - "django.middleware.common.CommonMiddleware"
+  - "django.middleware.csrf.CsrfViewMiddleware"
+  - "django.contrib.auth.middleware.AuthenticationMiddleware"
+  - "django.contrib.messages.middleware.MessageMiddleware"
+  - "django.middleware.clickjacking.XFrameOptionsMiddleware"
+
+# REST Framework Configuration
+rest_framework_settings:
+  DEFAULT_AUTHENTICATION_CLASSES:
+    - "rest_framework_simplejwt.authentication.JWTAuthentication"
+  DEFAULT_PERMISSION_CLASSES:
+    - "rest_framework.permissions.IsAuthenticated"
+  DEFAULT_PAGINATION_CLASS: "rest_framework.pagination.PageNumberPagination"
+  PAGE_SIZE: 20
+  DEFAULT_FILTER_BACKENDS:
+    - "django_filters.rest_framework.DjangoFilterBackend"
+    - "rest_framework.filters.SearchFilter"
+    - "rest_framework.filters.OrderingFilter"
+  DEFAULT_THROTTLE_CLASSES:
+    - "rest_framework.throttling.AnonRateThrottle"
+    - "rest_framework.throttling.UserRateThrottle"
+  DEFAULT_THROTTLE_RATES:
+    anon: "{{ api_throttle_anon }}"
+    user: "{{ api_throttle_user }}"
+  DEFAULT_SCHEMA_CLASS: "drf_spectacular.openapi.AutoSchema"
+
+# JWT Configuration
+jwt_settings:
+  ACCESS_TOKEN_LIFETIME: "timedelta(minutes=60)"
+  REFRESH_TOKEN_LIFETIME: "timedelta(days=7)"
+  ROTATE_REFRESH_TOKENS: true
+  BLACKLIST_AFTER_ROTATION: true
+
+# Spectacular API Documentation
+spectacular_settings:
+  TITLE: "Library Management System API"
+  DESCRIPTION: "Comprehensive API for library book management"
+  VERSION: "1.0.0"
+  SERVE_INCLUDE_SCHEMA: false
+
+# Performance Configuration
+performance_settings:
+  database_conn_max_age: 600
+  database_conn_health_checks: true
+  session_engine: "django.contrib.sessions.backends.cache"
+  session_cache_alias: "default"
+
+# Monitoring and Metrics
+monitoring_enabled: true
+sentry_dsn: "{{ vault_sentry_dsn | default('') }}"
+
+# File Upload Configuration
+file_upload_settings:
+  max_upload_size: 10485760  # 10MB
+  allowed_extensions: [".pdf", ".doc", ".docx", ".txt"]
+  upload_path: "{{ media_root }}/uploads"
+
+# Oracle Cloud Integration Settings
+oracle_cloud_settings:
+  region: "{{ oci_region }}"
+  compartment_id: "{{ oci_compartment_id }}"
+  object_storage_namespace: "{{ object_storage_namespace }}"
+  static_files_bucket: "{{ static_files_bucket }}"
+  backup_bucket: "{{ backup_bucket }}"

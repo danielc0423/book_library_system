@@ -1,0 +1,132 @@
+# ====================================
+# SSH Daemon Configuration Template
+# Secure SSH Configuration
+# Command 7: Ansible Configuration Management
+# ====================================
+
+# Basic Configuration
+Port {{ ssh_port | default(22) }}
+AddressFamily any
+ListenAddress 0.0.0.0
+ListenAddress ::
+
+# Protocol and Encryption
+Protocol 2
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+# Ciphers and Algorithms (Security Hardened)
+Ciphers aes256-gcm@openssh.com,chacha20-poly1305@openssh.com,aes256-ctr,aes128-gcm@openssh.com,aes128-ctr
+MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512
+KexAlgorithms curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256
+
+# Authentication Configuration
+PermitRootLogin {{ 'no' if disable_root_login else 'yes' }}
+MaxAuthTries {{ ssh_max_auth_tries | default(3) }}
+MaxSessions {{ ssh_max_sessions | default(4) }}
+MaxStartups {{ ssh_max_startups | default('10:30:60') }}
+
+# Password Authentication
+PasswordAuthentication {{ 'yes' if ssh_password_authentication else 'no' }}
+PermitEmptyPasswords {{ 'yes' if ssh_permit_empty_passwords else 'no' }}
+ChallengeResponseAuthentication {{ 'yes' if ssh_challenge_response_authentication else 'no' }}
+
+# Kerberos and GSSAPI
+KerberosAuthentication no
+GSSAPIAuthentication no
+
+# Public Key Authentication
+PubkeyAuthentication {{ 'yes' if ssh_pubkey_authentication else 'no' }}
+AuthorizedKeysFile .ssh/authorized_keys
+
+# PAM Configuration
+UsePAM {{ 'yes' if ssh_use_pam else 'no' }}
+
+# X11 and Port Forwarding
+X11Forwarding {{ 'yes' if ssh_x11_forwarding else 'no' }}
+X11DisplayOffset 10
+X11UseLocalhost yes
+AllowTcpForwarding {{ 'yes' if ssh_allow_tcp_forwarding else 'no' }}
+GatewayPorts {{ 'yes' if ssh_gateway_ports else 'no' }}
+PermitTunnel {{ 'yes' if ssh_permit_tunnel else 'no' }}
+
+# Session Configuration
+LoginGraceTime {{ ssh_login_grace_time | default(30) }}
+ClientAliveInterval {{ ssh_client_alive_interval | default(300) }}
+ClientAliveCountMax {{ ssh_client_alive_count_max | default(2) }}
+TCPKeepAlive yes
+
+# Access Control
+{% if allowed_ssh_users is defined and allowed_ssh_users | length > 0 %}
+AllowUsers {{ allowed_ssh_users | join(' ') }}
+{% endif %}
+
+{% if allowed_ssh_groups is defined and allowed_ssh_groups | length > 0 %}
+AllowGroups {{ allowed_ssh_groups | join(' ') }}
+{% endif %}
+
+# Environment
+AcceptEnv LANG LC_*
+PrintMotd no
+PrintLastLog yes
+Banner {{ ssh_banner_file | default('/etc/issue.net') }}
+
+# Subsystem Configuration
+Subsystem sftp {{ ssh_sftp_server | default('/usr/libexec/openssh/sftp-server') }}
+
+# Logging
+SyslogFacility AUTHPRIV
+LogLevel {{ ssh_log_level | default('INFO') }}
+
+# Security Hardening
+PermitUserEnvironment no
+Compression delayed
+ClientAliveInterval {{ ssh_client_alive_interval | default(300) }}
+ClientAliveCountMax {{ ssh_client_alive_count_max | default(2) }}
+UseDNS no
+VersionAddendum none
+
+# Oracle Cloud specific settings
+{% if ansible_system_vendor is defined and 'Oracle' in ansible_system_vendor %}
+# Optimize for Oracle Cloud Infrastructure
+TCPKeepAlive yes
+ServerAliveInterval 60
+ServerAliveCountMax 3
+{% endif %}
+
+# Development Environment Settings
+{% if environment == 'development' %}
+LogLevel DEBUG
+PermitUserEnvironment yes
+{% endif %}
+
+# Production Environment Settings
+{% if environment == 'production' %}
+LogLevel VERBOSE
+StrictModes yes
+IgnoreRhosts yes
+IgnoreUserKnownHosts yes
+HostbasedAuthentication no
+{% endif %}
+
+# Custom SSH configuration for application deployment
+{% if app_user is defined %}
+Match User {{ app_user }}
+    ForceCommand /bin/bash
+    AllowTcpForwarding no
+    X11Forwarding no
+    PermitTunnel no
+{% endif %}
+
+# Restricted access for monitoring
+Match User monitoring
+    ForceCommand /usr/local/bin/monitoring-shell
+    AllowTcpForwarding no
+    X11Forwarding no
+    PermitTunnel no
+
+# Emergency access configuration
+Match Address 127.0.0.1
+    PermitRootLogin yes
+    PasswordAuthentication yes

@@ -1,0 +1,84 @@
+# ====================================
+# Gunicorn Systemd Service Template
+# Django Application WSGI Server
+# Command 7: Ansible Configuration Management
+# ====================================
+
+[Unit]
+Description=Gunicorn daemon for Library Management System
+Documentation=https://docs.gunicorn.org/
+Requires=network.target
+After=network.target
+
+[Service]
+Type=notify
+User={{ app_user }}
+Group={{ app_group }}
+RuntimeDirectory=gunicorn
+WorkingDirectory={{ app_home }}/source
+Environment=PATH={{ app_home }}/venv/bin
+Environment=DJANGO_SETTINGS_MODULE={{ django_settings_module }}
+EnvironmentFile={{ app_home }}/.env
+ExecStart={{ app_home }}/venv/bin/gunicorn \
+    --config {{ app_home }}/config/gunicorn.conf.py \
+    --bind {{ gunicorn_bind }}:{{ gunicorn_bind_port }} \
+    --workers {{ gunicorn_workers }} \
+    --worker-class {{ gunicorn_worker_class }} \
+    --worker-connections {{ gunicorn_worker_connections }} \
+    --max-requests {{ gunicorn_max_requests }} \
+    --max-requests-jitter {{ gunicorn_max_requests_jitter }} \
+    --timeout {{ gunicorn_timeout }} \
+    --keepalive {{ gunicorn_keepalive }} \
+    --log-level {{ gunicorn_log_level }} \
+    --access-logfile {{ gunicorn_access_log }} \
+    --error-logfile {{ gunicorn_error_log }} \
+    --pid /run/gunicorn/gunicorn.pid \
+    {% if gunicorn_preload_app %}--preload {% endif %}\
+    {% if gunicorn_reload and environment == 'development' %}--reload {% endif %}\
+    library_system.wsgi:application
+
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=30
+PrivateTmp=true
+RuntimeDirectoryMode=755
+
+# Security settings
+NoNewPrivileges=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+MemoryDenyWriteExecute=yes
+
+# File system restrictions
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths={{ app_home }}
+ReadWritePaths=/var/log/library-system
+ReadWritePaths=/tmp
+ReadWritePaths=/var/tmp
+
+# Network restrictions
+{% if environment == 'production' %}
+PrivateNetwork=no
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+{% endif %}
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=32768
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Output to journal
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=gunicorn
+
+[Install]
+WantedBy=multi-user.target

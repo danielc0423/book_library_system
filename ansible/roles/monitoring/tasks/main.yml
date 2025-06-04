@@ -1,0 +1,419 @@
+---
+# ====================================
+# Monitoring Role Main Tasks
+# System and Application Monitoring Setup
+# ====================================
+
+- name: "Monitoring Setup - Create monitoring user"
+  user:
+    name: "{{ monitoring_user }}"
+    group: "{{ monitoring_group }}"
+    home: "{{ monitoring_home }}"
+    shell: /bin/bash
+    system: yes
+    create_home: yes
+    state: present
+  tags: ['monitoring', 'user']
+
+- name: "Monitoring Setup - Create monitoring directories"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_group }}"
+    mode: '0755'
+  with_items:
+    - "{{ monitoring_home }}"
+    - "{{ monitoring_config_dir }}"
+    - "{{ monitoring_data_dir }}"
+    - "{{ monitoring_log_dir }}"
+    - /var/lib/prometheus
+    - /var/lib/grafana
+    - /etc/prometheus
+    - /etc/grafana
+    - /opt/monitoring/scripts
+    - /opt/monitoring/exporters
+  tags: ['monitoring', 'directories']
+
+- name: "Node Exporter - Download and install"
+  get_url:
+    url: "{{ node_exporter_download_url }}"
+    dest: "/tmp/{{ node_exporter_archive }}"
+    mode: '0644'
+  tags: ['monitoring', 'node-exporter', 'download']
+
+- name: "Node Exporter - Extract archive"
+  unarchive:
+    src: "/tmp/{{ node_exporter_archive }}"
+    dest: /tmp
+    remote_src: yes
+    creates: "/tmp/{{ node_exporter_dir }}"
+  tags: ['monitoring', 'node-exporter', 'extract']
+
+- name: "Node Exporter - Install binary"
+  copy:
+    src: "/tmp/{{ node_exporter_dir }}/node_exporter"
+    dest: /usr/local/bin/node_exporter
+    owner: root
+    group: root
+    mode: '0755'
+    remote_src: yes
+  tags: ['monitoring', 'node-exporter', 'install']
+
+- name: "Node Exporter - Create systemd service"
+  template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart node_exporter
+  tags: ['monitoring', 'node-exporter', 'service']
+
+- name: "Prometheus - Download and install"
+  get_url:
+    url: "{{ prometheus_download_url }}"
+    dest: "/tmp/{{ prometheus_archive }}"
+    mode: '0644'
+  when: install_prometheus | default(false)
+  tags: ['monitoring', 'prometheus', 'download']
+
+- name: "Prometheus - Extract archive"
+  unarchive:
+    src: "/tmp/{{ prometheus_archive }}"
+    dest: /tmp
+    remote_src: yes
+    creates: "/tmp/{{ prometheus_dir }}"
+  when: install_prometheus | default(false)
+  tags: ['monitoring', 'prometheus', 'extract']
+
+- name: "Prometheus - Install binaries"
+  copy:
+    src: "/tmp/{{ prometheus_dir }}/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    owner: root
+    group: root
+    mode: '0755'
+    remote_src: yes
+  with_items:
+    - prometheus
+    - promtool
+  when: install_prometheus | default(false)
+  tags: ['monitoring', 'prometheus', 'install']
+
+- name: "Prometheus - Create configuration"
+  template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_group }}"
+    mode: '0644'
+  notify: restart prometheus
+  when: install_prometheus | default(false)
+  tags: ['monitoring', 'prometheus', 'config']
+
+- name: "Prometheus - Create systemd service"
+  template:
+    src: prometheus.service.j2
+    dest: /etc/systemd/system/prometheus.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart prometheus
+  when: install_prometheus | default(false)
+  tags: ['monitoring', 'prometheus', 'service']
+
+- name: "Oracle Exporter - Download and install"
+  get_url:
+    url: "{{ oracle_exporter_download_url }}"
+    dest: "/tmp/{{ oracle_exporter_archive }}"
+    mode: '0644'
+  when: oracle_exporter_enabled | default(true)
+  tags: ['monitoring', 'oracle-exporter', 'download']
+
+- name: "Oracle Exporter - Extract and install"
+  unarchive:
+    src: "/tmp/{{ oracle_exporter_archive }}"
+    dest: /opt/monitoring/exporters
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_group }}"
+    remote_src: yes
+  when: oracle_exporter_enabled | default(true)
+  tags: ['monitoring', 'oracle-exporter', 'install']
+
+- name: "Oracle Exporter - Create configuration"
+  template:
+    src: oracle_exporter.yml.j2
+    dest: /etc/prometheus/oracle_exporter.yml
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_group }}"
+    mode: '0600'
+  when: oracle_exporter_enabled | default(true)
+  tags: ['monitoring', 'oracle-exporter', 'config']
+
+- name: "Oracle Exporter - Create systemd service"
+  template:
+    src: oracle_exporter.service.j2
+    dest: /etc/systemd/system/oracle_exporter.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart oracle_exporter
+  when: oracle_exporter_enabled | default(true)
+  tags: ['monitoring', 'oracle-exporter', 'service']
+
+- name: "Nginx Exporter - Download and install"
+  get_url:
+    url: "{{ nginx_exporter_download_url }}"
+    dest: "/tmp/{{ nginx_exporter_archive }}"
+    mode: '0644'
+  when: nginx_exporter_enabled | default(true)
+  tags: ['monitoring', 'nginx-exporter', 'download']
+
+- name: "Nginx Exporter - Extract and install"
+  unarchive:
+    src: "/tmp/{{ nginx_exporter_archive }}"
+    dest: /tmp
+    remote_src: yes
+    creates: "/tmp/{{ nginx_exporter_dir }}"
+  when: nginx_exporter_enabled | default(true)
+  tags: ['monitoring', 'nginx-exporter', 'extract']
+
+- name: "Nginx Exporter - Install binary"
+  copy:
+    src: "/tmp/{{ nginx_exporter_dir }}/nginx-prometheus-exporter"
+    dest: /usr/local/bin/nginx_exporter
+    owner: root
+    group: root
+    mode: '0755'
+    remote_src: yes
+  when: nginx_exporter_enabled | default(true)
+  tags: ['monitoring', 'nginx-exporter', 'install']
+
+- name: "Nginx Exporter - Create systemd service"
+  template:
+    src: nginx_exporter.service.j2
+    dest: /etc/systemd/system/nginx_exporter.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart nginx_exporter
+  when: nginx_exporter_enabled | default(true)
+  tags: ['monitoring', 'nginx-exporter', 'service']
+
+- name: "Promtail - Download and install"
+  get_url:
+    url: "{{ promtail_download_url }}"
+    dest: "/tmp/{{ promtail_archive }}"
+    mode: '0644'
+  when: promtail_enabled | default(true)
+  tags: ['monitoring', 'promtail', 'download']
+
+- name: "Promtail - Extract and install"
+  unarchive:
+    src: "/tmp/{{ promtail_archive }}"
+    dest: /tmp
+    remote_src: yes
+    creates: "/tmp/{{ promtail_dir }}"
+  when: promtail_enabled | default(true)
+  tags: ['monitoring', 'promtail', 'extract']
+
+- name: "Promtail - Install binary"
+  copy:
+    src: "/tmp/{{ promtail_dir }}/promtail-linux-amd64"
+    dest: /usr/local/bin/promtail
+    owner: root
+    group: root
+    mode: '0755'
+    remote_src: yes
+  when: promtail_enabled | default(true)
+  tags: ['monitoring', 'promtail', 'install']
+
+- name: "Promtail - Create configuration"
+  template:
+    src: promtail.yml.j2
+    dest: /etc/prometheus/promtail.yml
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_group }}"
+    mode: '0644'
+  notify: restart promtail
+  when: promtail_enabled | default(true)
+  tags: ['monitoring', 'promtail', 'config']
+
+- name: "Promtail - Create systemd service"
+  template:
+    src: promtail.service.j2
+    dest: /etc/systemd/system/promtail.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart promtail
+  when: promtail_enabled | default(true)
+  tags: ['monitoring', 'promtail', 'service']
+
+- name: "Monitoring Scripts - Create system monitoring script"
+  template:
+    src: system_monitor.sh.j2
+    dest: /opt/monitoring/scripts/system_monitor.sh
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_group }}"
+    mode: '0755'
+  tags: ['monitoring', 'scripts']
+
+- name: "Monitoring Scripts - Create application health check"
+  template:
+    src: app_health_check.sh.j2
+    dest: /opt/monitoring/scripts/app_health_check.sh
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_group }}"
+    mode: '0755'
+  tags: ['monitoring', 'scripts', 'health']
+
+- name: "Monitoring Scripts - Create alert script"
+  template:
+    src: alert_handler.sh.j2
+    dest: /opt/monitoring/scripts/alert_handler.sh
+    owner: "{{ monitoring_user }}"
+    group: "{{ monitoring_group }}"
+    mode: '0755'
+  tags: ['monitoring', 'scripts', 'alerts']
+
+- name: "Log Rotation - Configure log rotation for monitoring"
+  template:
+    src: monitoring_logrotate.j2
+    dest: /etc/logrotate.d/monitoring
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['monitoring', 'logging']
+
+- name: "Firewall - Open monitoring ports"
+  firewalld:
+    port: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - "{{ node_exporter_port }}/tcp"
+    - "{{ oracle_exporter_port }}/tcp"
+    - "{{ nginx_exporter_port }}/tcp"
+  tags: ['monitoring', 'firewall']
+
+- name: "Service Management - Start and enable monitoring services"
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  with_items:
+    - node_exporter
+  tags: ['monitoring', 'services']
+
+- name: "Service Management - Start Oracle exporter"
+  systemd:
+    name: oracle_exporter
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  when: oracle_exporter_enabled | default(true)
+  tags: ['monitoring', 'services', 'oracle']
+
+- name: "Service Management - Start Nginx exporter"
+  systemd:
+    name: nginx_exporter
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  when: nginx_exporter_enabled | default(true)
+  tags: ['monitoring', 'services', 'nginx']
+
+- name: "Service Management - Start Promtail"
+  systemd:
+    name: promtail
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  when: promtail_enabled | default(true)
+  tags: ['monitoring', 'services', 'promtail']
+
+- name: "Service Management - Start Prometheus"
+  systemd:
+    name: prometheus
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  when: install_prometheus | default(false)
+  tags: ['monitoring', 'services', 'prometheus']
+
+- name: "Cron Jobs - Schedule monitoring tasks"
+  cron:
+    name: "{{ item.name }}"
+    minute: "{{ item.minute }}"
+    hour: "{{ item.hour | default('*') }}"
+    job: "{{ item.job }}"
+    user: "{{ monitoring_user }}"
+  with_items:
+    - name: "System health check"
+      minute: "*/5"
+      job: "/opt/monitoring/scripts/system_monitor.sh"
+    - name: "Application health check"
+      minute: "*/1"
+      job: "/opt/monitoring/scripts/app_health_check.sh"
+    - name: "Log cleanup"
+      minute: "0"
+      hour: "3"
+      job: "find {{ monitoring_log_dir }} -name '*.log' -mtime +7 -delete"
+  tags: ['monitoring', 'cron']
+
+- name: "Health Check - Verify monitoring services"
+  uri:
+    url: "http://localhost:{{ item.port }}/{{ item.endpoint | default('') }}"
+    method: GET
+    timeout: 10
+  with_items:
+    - { port: "{{ node_exporter_port }}", endpoint: "metrics" }
+    - { port: "{{ oracle_exporter_port }}", endpoint: "metrics" }
+    - { port: "{{ nginx_exporter_port }}", endpoint: "metrics" }
+  register: monitoring_health
+  failed_when: false
+  tags: ['monitoring', 'health']
+
+- name: "Cleanup - Remove temporary files"
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "/tmp/{{ node_exporter_archive }}"
+    - "/tmp/{{ node_exporter_dir }}"
+    - "/tmp/{{ prometheus_archive }}"
+    - "/tmp/{{ prometheus_dir }}"
+    - "/tmp/{{ oracle_exporter_archive }}"
+    - "/tmp/{{ nginx_exporter_archive }}"
+    - "/tmp/{{ nginx_exporter_dir }}"
+    - "/tmp/{{ promtail_archive }}"
+    - "/tmp/{{ promtail_dir }}"
+  tags: ['monitoring', 'cleanup']
+
+- name: "Information - Display monitoring status"
+  debug:
+    msg: |
+      Monitoring Configuration Complete:
+      - Node Exporter: http://{{ ansible_hostname }}:{{ node_exporter_port }}/metrics
+      - Oracle Exporter: {{ 'Enabled' if oracle_exporter_enabled else 'Disabled' }}
+      - Nginx Exporter: {{ 'Enabled' if nginx_exporter_enabled else 'Disabled' }}
+      - Promtail: {{ 'Enabled' if promtail_enabled else 'Disabled' }}
+      - Prometheus: {{ 'Enabled' if install_prometheus else 'Disabled' }}
+      - Monitoring User: {{ monitoring_user }}
+      - Log Directory: {{ monitoring_log_dir }}
+      - Health Checks: {{ monitoring_health.results | selectattr('status', 'defined') | selectattr('status', 'equalto', 200) | list | length }} / {{ monitoring_health.results | length }} services responding
+  tags: ['monitoring', 'info']

@@ -1,0 +1,447 @@
+# ====================================
+# Staging Environment Example Variables
+# Oracle Cloud Infrastructure (OCI) 
+# Book Library System
+# ====================================
+
+# ====================================
+# Provider Configuration
+# Required: Update these with your actual OCI credentials
+# ====================================
+
+tenancy_ocid     = "ocid1.tenancy.oc1..example1234567890abcdefghijklmnopqrstuvwxyz"
+user_ocid        = "ocid1.user.oc1..example1234567890abcdefghijklmnopqrstuvwxyz"
+fingerprint      = "ab:cd:ef:12:34:56:78:90:ab:cd:ef:12:34:56:78:90"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "us-ashburn-1"
+compartment_ocid = "ocid1.compartment.oc1..example1234567890abcdefghijklmnopqrstuvwxyz"
+
+# ====================================
+# Staging Environment Configuration
+# ====================================
+
+environment_name = "staging"
+project_name     = "library-system"
+cost_center      = "Engineering"
+owner_email      = "qa-team@yourcompany.com"
+
+# ====================================
+# Domain and SSL Configuration
+# ====================================
+
+staging_domain_name     = "staging.library.yourcompany.com"
+enable_custom_domain    = true
+ssl_certificate_source  = "letsencrypt"  # or "custom" or "oci"
+
+# ====================================
+# Database Configuration
+# Required: Set a secure password for staging database
+# ====================================
+
+db_admin_password = "StagingSecurePassword123!@#$"  # Use a strong password
+db_name          = "libstagedb"
+
+db_backup_schedule = "0 2 * * *"  # Daily at 2 AM UTC
+
+db_maintenance_window = {
+  day_of_week = "SUNDAY"
+  start_time  = "02:00"
+  duration    = 4
+}
+
+# ====================================
+# SSH Access Configuration
+# Required: Add your SSH public key and allowed IPs
+# ====================================
+
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC... staging-key@yourcompany.com"
+
+# Restrict SSH access to specific IP ranges for staging
+allowed_ssh_cidrs = [
+  "203.0.113.0/24",    # Office network
+  "198.51.100.0/24",   # VPN network
+  "192.0.2.10/32"      # Specific admin IP
+]
+
+enable_ssh_key_rotation = true
+ssh_key_rotation_days   = 90
+
+# ====================================
+# Network Security Configuration
+# ====================================
+
+enable_network_security_scanning = true
+enable_ddos_protection           = true
+
+# External CIDR blocks allowed access to staging
+allowed_external_cidrs = [
+  "203.0.113.0/24",    # Office network
+  "198.51.100.0/24"    # Partner network
+]
+
+# Custom firewall rules for staging
+firewall_rules = [
+  {
+    name        = "allow-qa-testing-tools"
+    direction   = "INGRESS"
+    protocol    = "TCP"
+    source      = "203.0.113.0/24"
+    destination = "10.1.2.0/24"
+    port_range  = "9000-9010"
+    action      = "ALLOW"
+    priority    = 100
+  }
+]
+
+# ====================================
+# Performance and Scaling Configuration
+# ====================================
+
+performance_tier = "standard"
+
+auto_scaling_policy = {
+  scale_out_cpu_threshold    = 70
+  scale_in_cpu_threshold     = 30
+  scale_out_memory_threshold = 75
+  scale_in_memory_threshold  = 35
+  cooldown_minutes          = 5
+}
+
+load_testing_enabled  = true
+expected_peak_users   = 500
+
+# ====================================
+# Monitoring and Alerting Configuration
+# ====================================
+
+monitoring_level = "comprehensive"
+
+alert_notification_emails = [
+  "qa-team@yourcompany.com",
+  "devops@yourcompany.com",
+  "alerts@yourcompany.com"
+]
+
+alert_severity_levels = ["WARNING", "CRITICAL"]
+
+# Custom metrics for staging environment
+custom_metrics = [
+  {
+    name        = "api_response_time_p95"
+    namespace   = "library_staging"
+    query       = "APIResponseTime[1m].percentile(95)"
+    threshold   = 2000
+    comparison  = "GREATER_THAN"
+    severity    = "WARNING"
+  },
+  {
+    name        = "database_connection_pool"
+    namespace   = "library_staging"
+    query       = "DatabaseConnectionPoolUtilization[1m].mean()"
+    threshold   = 80
+    comparison  = "GREATER_THAN"
+    severity    = "CRITICAL"
+  }
+]
+
+# ====================================
+# Application Configuration
+# ====================================
+
+django_debug_mode = false  # Always false for staging
+django_secret_key = "staging-secret-key-change-this-to-something-secure-123456789"
+
+allowed_hosts = [
+  "staging.library.yourcompany.com",
+  "staging-api.library.yourcompany.com",
+  "10.1.1.0/24"  # Load balancer subnet
+]
+
+cors_allowed_origins = [
+  "https://staging.library.yourcompany.com",
+  "https://staging-admin.library.yourcompany.com"
+]
+
+api_rate_limiting = {
+  enabled           = true
+  requests_per_hour = 1000
+  burst_limit      = 50
+}
+
+# ====================================
+# Data Management Configuration
+# ====================================
+
+enable_data_masking = true
+
+data_retention_policy = {
+  application_logs_days = 30
+  audit_logs_days      = 90
+  user_data_days       = 365
+  metrics_days         = 93
+}
+
+backup_strategy = {
+  database_backup_frequency   = "daily"
+  application_backup_frequency = "weekly"
+  retention_period_days      = 30
+  cross_region_backup        = false
+}
+
+# ====================================
+# Testing Configuration
+# ====================================
+
+enable_test_automation = true
+
+test_data_configuration = {
+  load_production_snapshot = false
+  generate_synthetic_data  = true
+  data_volume_percentage   = 80
+  anonymize_data          = true
+}
+
+qa_testing_tools = [
+  "selenium",
+  "postman",
+  "jmeter",
+  "sonarqube",
+  "owasp-zap"
+]
+
+# ====================================
+# Integration Configuration
+# Note: Use staging/mock endpoints for external services
+# ====================================
+
+external_integrations = {
+  "email_service" = {
+    enabled    = true
+    endpoint   = "https://api.staging.emailprovider.com"
+    auth_type  = "bearer"
+    timeout_ms = 5000
+  }
+  "payment_gateway" = {
+    enabled    = true
+    endpoint   = "https://sandbox.paymentprovider.com"
+    auth_type  = "api_key"
+    timeout_ms = 10000
+  }
+}
+
+enable_api_mocking = true
+
+mock_service_endpoints = {
+  "external_library_api" = {
+    original_endpoint = "https://api.libraryservice.com"
+    mock_endpoint    = "https://staging-mock.library.yourcompany.com/library-api"
+    response_delay_ms = 100
+  }
+}
+
+# ====================================
+# Compliance and Security Configuration
+# ====================================
+
+compliance_standards = ["SOC2", "GDPR", "PCI-DSS"]
+
+security_scanning_schedule = "0 3 * * 1"  # Weekly on Monday at 3 AM
+vulnerability_scan_enabled = true
+
+penetration_testing_schedule = {
+  enabled   = true
+  frequency = "monthly"
+  scope     = ["web", "api", "infrastructure"]
+}
+
+# ====================================
+# Cost Management Configuration
+# ====================================
+
+cost_management = {
+  monthly_budget_limit    = 2000
+  cost_alert_thresholds  = [50, 75, 90]
+  auto_scaling_cost_limit = 500
+  resource_tagging_required = true
+}
+
+resource_optimization = {
+  enable_rightsizing_recommendations = true
+  enable_unused_resource_detection   = true
+  enable_cost_anomaly_detection      = true
+}
+
+# ====================================
+# Disaster Recovery Configuration
+# ====================================
+
+disaster_recovery = {
+  enabled                = true
+  backup_region         = "us-phoenix-1"
+  rto_hours             = 4
+  rpo_hours             = 1
+  automated_failover    = false
+  cross_region_replication = false
+}
+
+# ====================================
+# Environment Lifecycle Configuration
+# ====================================
+
+environment_lifecycle = {
+  auto_refresh_enabled       = true
+  refresh_schedule          = "0 2 * * 0"  # Weekly on Sunday at 2 AM
+  data_refresh_source       = "production"
+  notification_before_refresh = 24  # hours
+}
+
+# ====================================
+# Object Storage Configuration
+# Required: Update with your actual namespace
+# ====================================
+
+object_storage_namespace = "your-tenancy-namespace"  # Replace with your actual namespace
+
+staging_storage_configuration = {
+  static_files_bucket = "staging-library-static"
+  media_files_bucket  = "staging-library-media"
+  backup_bucket      = "staging-library-backups"
+  logs_bucket        = "staging-library-logs"
+  archive_bucket     = "staging-library-archive"
+}
+
+# ====================================
+# User Access Management
+# ====================================
+
+user_access_groups = {
+  "qa-engineers" = {
+    members           = [
+      "qa1@yourcompany.com",
+      "qa2@yourcompany.com"
+    ]
+    permissions       = ["compute:read", "database:read", "monitoring:read"]
+    ssh_access        = false
+    admin_access      = false
+    temporary_access  = false
+    access_duration_hours = 0
+  }
+  "senior-qa-engineers" = {
+    members           = [
+      "senior-qa@yourcompany.com"
+    ]
+    permissions       = ["compute:*", "database:read", "monitoring:*"]
+    ssh_access        = true
+    admin_access      = false
+    temporary_access  = false
+    access_duration_hours = 0
+  }
+  "staging-admins" = {
+    members           = [
+      "staging-admin@yourcompany.com",
+      "devops@yourcompany.com"
+    ]
+    permissions       = ["*:*"]
+    ssh_access        = true
+    admin_access      = true
+    temporary_access  = false
+    access_duration_hours = 0
+  }
+  "developers" = {
+    members           = [
+      "dev1@yourcompany.com",
+      "dev2@yourcompany.com"
+    ]
+    permissions       = ["compute:read", "monitoring:read", "logging:read"]
+    ssh_access        = false
+    admin_access      = false
+    temporary_access  = true
+    access_duration_hours = 8
+  }
+}
+
+access_review_schedule = {
+  enabled   = true
+  frequency = "monthly"
+  reviewers = [
+    "security@yourcompany.com",
+    "qa-manager@yourcompany.com"
+  ]
+}
+
+# ====================================
+# Feature Flags for Staging Testing
+# ====================================
+
+feature_flags = {
+  "enable_new_ui"                = true
+  "enable_advanced_search"       = true
+  "enable_book_recommendations"  = true
+  "enable_social_features"       = true
+  "enable_mobile_app_api"        = true
+  "enable_analytics_dashboard"   = true
+  "enable_ai_features"           = false
+  "enable_experimental_features" = true
+}
+
+# ====================================
+# Custom Tags
+# ====================================
+
+custom_tags = {
+  Environment     = "staging"
+  Purpose         = "pre-production-testing"
+  DataClass       = "test"
+  Criticality     = "medium"
+  Compliance      = "required"
+  AutoShutdown    = "disabled"
+  BackupRequired  = "true"
+  MonitoringLevel = "comprehensive"
+  CostCenter      = "Engineering"
+  Owner           = "QA Team"
+  Project         = "library-system"
+  ManagedBy       = "terraform"
+  LastUpdated     = "2025-06-03"
+}
+
+# ====================================
+# Notes for Staging Environment Setup
+# ====================================
+
+# 1. Copy this file to terraform.tfvars and update all values
+# 2. Ensure your OCI credentials are properly configured
+# 3. Update the SSH public key with your actual staging key
+# 4. Configure proper IP address restrictions for security
+# 5. Set up monitoring and alerting email addresses
+# 6. Review and adjust cost management settings
+# 7. Configure external service integrations for staging
+# 8. Set up user access groups according to your team structure
+
+# Security Notes for Staging:
+# - This configuration is production-like for testing
+# - Security rules are properly restrictive
+# - Debug mode is disabled
+# - Comprehensive monitoring is enabled
+# - SSL certificates and WAF are configured
+# - Data masking and retention policies are enforced
+
+# Staging Environment Features:
+# - Production-like infrastructure for realistic testing
+# - Comprehensive monitoring and alerting
+# - Security scanning and vulnerability assessment
+# - Performance and load testing capabilities
+# - Automated backup and disaster recovery
+# - Cost management and optimization
+# - User access management and review processes
+
+# To deploy staging environment:
+# 1. terraform init
+# 2. terraform workspace new staging
+# 3. terraform plan
+# 4. terraform apply
+
+# To update staging environment:
+# terraform plan && terraform apply
+
+# To destroy staging environment:
+# terraform destroy

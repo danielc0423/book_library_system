@@ -1,0 +1,75 @@
+# ====================================
+# Chrony Configuration Template
+# NTP Time Synchronization
+# Command 7: Ansible Configuration Management
+# ====================================
+
+# NTP Servers
+{% for server in ntp_servers %}
+server {{ server }} iburst
+{% endfor %}
+
+# Oracle Cloud Infrastructure Time Servers
+server 169.254.169.254 iburst prefer
+
+# Record the rate at which the system clock gains/losses time.
+driftfile /var/lib/chrony/drift
+
+# Allow the system clock to be stepped in the first three updates
+# if its offset is larger than 1 second.
+makestep 1.0 3
+
+# Enable kernel synchronization of the real-time clock (RTC).
+rtcsync
+
+# Enable hardware timestamping on all interfaces that support it.
+#hwtimestamp *
+
+# Increase the minimum number of selectable sources required to adjust
+# the system clock.
+#minsources 2
+
+# Allow NTP client access from local network.
+# allow 192.168.0.0/16
+{% if environment == 'development' %}
+allow 10.0.0.0/16
+{% endif %}
+
+# Serve time even if not synchronized to a time source.
+#local stratum 10
+
+# Specify file containing keys for NTP authentication.
+keyfile /etc/chrony.keys
+
+# Get TAI-UTC offset and leap seconds from the system tz database.
+leapsectz right/UTC
+
+# Specify directory for log files.
+logdir /var/log/chrony
+
+# Select which information is logged.
+#log measurements statistics tracking
+log tracking
+
+# Save NTP sources and clock into drift file
+dumpdir /var/lib/chrony
+dumponexit
+
+# Oracle Cloud specific configuration
+{% if ansible_system_vendor is defined and 'Oracle' in ansible_system_vendor %}
+# Optimize for Oracle Cloud Infrastructure
+cmdallow 127.0.0.1
+bindcmdaddress 127.0.0.1
+{% endif %}
+
+# Security settings
+cmdport 0
+clientloglimit 10000000
+
+# Performance tuning
+maxupdateskew 100.0
+rtconutc
+{% if environment == 'production' %}
+maxdistance 16.0
+maxdelay 3.0
+{% endif %}

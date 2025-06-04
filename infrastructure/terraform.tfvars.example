@@ -1,0 +1,332 @@
+# ====================================
+# Terraform Variables Example File
+# Oracle Cloud Infrastructure (OCI) 
+# Book Library System
+# ====================================
+#
+# Instructions:
+# 1. Copy this file to terraform.tfvars
+# 2. Update the values below with your specific configuration
+# 3. Ensure sensitive values are properly secured
+# 4. Never commit terraform.tfvars to version control
+#
+# ====================================
+
+# ====================================
+# OCI Authentication Configuration
+# ====================================
+# These values should be obtained from your OCI console and API key setup
+
+# Your OCI tenancy OCID
+tenancy_ocid = "ocid1.tenancy.oc1..aaaaaaaexample"
+
+# Your OCI user OCID
+user_ocid = "ocid1.user.oc1..aaaaaaaexample"
+
+# Fingerprint of your OCI API signing key
+fingerprint = "aa:bb:cc:dd:ee:ff:11:22:33:44:55:66:77:88:99:00"
+
+# Path to your OCI API private key file
+private_key_path = "~/.oci/oci_api_key.pem"
+
+# OCI compartment OCID where resources will be created
+compartment_ocid = "ocid1.compartment.oc1..aaaaaaaexample"
+
+# OCI region for deployment
+region = "us-ashburn-1"
+
+# ====================================
+# Project Configuration
+# ====================================
+
+# Project name (used for resource naming)
+project_name = "library-system"
+
+# Environment (dev, staging, prod)
+environment = "dev"
+
+# Resource owner (for tagging)
+owner = "library-admin"
+
+# ====================================
+# Network Configuration
+# ====================================
+
+# VCN CIDR block
+vcn_cidr = "10.0.0.0/16"
+
+# DNS label for VCN
+dns_label = "librarysystem"
+
+# CIDR blocks allowed to access the infrastructure
+# IMPORTANT: Restrict this in production environments
+allowed_cidr_blocks = [
+  "0.0.0.0/0"  # Allow from anywhere - CHANGE IN PRODUCTION
+  # "203.0.113.0/24",  # Example: Office network
+  # "198.51.100.0/24"  # Example: VPN network
+]
+
+# ====================================
+# Compute Configuration
+# ====================================
+
+# Compute instance shape
+compute_shape = "VM.Standard.E4.Flex"
+
+# Number of OCPUs per instance
+compute_ocpus = 2
+
+# Memory in GB per instance
+compute_memory_gb = 16
+
+# Boot volume size in GB
+boot_volume_size_gb = 50
+
+# SSH public key for instance access
+# Generate with: ssh-keygen -t rsa -b 4096 -f ~/.ssh/library_system_key
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC... your-public-key-here"
+
+# ====================================
+# Auto Scaling Configuration
+# ====================================
+
+# Minimum number of instances
+min_instances = 2
+
+# Maximum number of instances
+max_instances = 10
+
+# Desired number of instances
+desired_instances = 3
+
+# ====================================
+# Database Configuration
+# ====================================
+
+# Autonomous Database name
+db_name = "LibraryDB"
+
+# Database version
+db_version = "21c"
+
+# Number of CPU cores for database
+db_cpu_core_count = 2
+
+# Database storage size in GB
+db_data_storage_size = 1024
+
+# Enable database auto scaling
+db_auto_scaling_enabled = true
+
+# Backup retention period in days
+backup_retention_days = 30
+
+# ====================================
+# Application Configuration
+# ====================================
+
+# Application port
+app_port = 8000
+
+# Domain name for the application
+domain_name = "library.example.com"
+
+# SSL certificate name
+ssl_certificate_name = "library-ssl-cert"
+
+# ====================================
+# Monitoring and Notifications
+# ====================================
+
+# Email for notifications
+notification_email = "admin@library.com"
+
+# Slack webhook URL (optional)
+slack_webhook_url = ""
+
+# Log retention period in days
+log_retention_days = 90
+
+# ====================================
+# Cost Optimization
+# ====================================
+
+# Enable cost optimization features
+enable_cost_optimization = false
+
+# Percentage of instances to run as spot instances (0-100)
+spot_instance_percentage = 50
+
+# Budget alert threshold in USD
+budget_alert_threshold = 1000
+
+# Cost center for billing
+cost_center = "IT-Library"
+
+# ====================================
+# High Availability and Security
+# ====================================
+
+# Enable multi-availability domain deployment
+enable_multi_ad = true
+
+# Enable cross-region backup for disaster recovery
+enable_cross_region_backup = false
+
+# Enable Web Application Firewall
+enable_waf = true
+
+# Enable Cloud Guard security monitoring
+enable_cloud_guard = true
+
+# Enable vulnerability scanning
+enable_vulnerability_scanning = true
+
+# ====================================
+# Development and Testing
+# ====================================
+
+# Enable bastion host for secure access
+enable_bastion_host = true
+
+# Bastion host shape
+bastion_shape = "VM.Standard.E4.Flex"
+
+# Enable development and debugging tools
+enable_development_tools = false
+
+# ====================================
+# Analytics Configuration
+# ====================================
+
+# Oracle Analytics Cloud instance shape
+analytics_shape = "VM.Standard.E4.Flex"
+
+# Number of OCPUs for Analytics Cloud
+analytics_ocpus = 4
+
+# Storage size for Analytics Cloud in GB
+analytics_storage_gb = 1024
+
+# ====================================
+# Integration Cloud Configuration
+# ====================================
+
+# Number of message packs for OIC
+oic_message_packs = 1
+
+# OIC edition (STANDARD or ENTERPRISE)
+oic_edition = "STANDARD"
+
+# ====================================
+# Terraform State Configuration
+# ====================================
+
+# Object storage endpoint for Terraform state
+object_storage_endpoint = "https://objectstorage.us-ashburn-1.oraclecloud.com"
+
+# Object storage bucket for Terraform state
+terraform_state_bucket = "terraform-state"
+
+# ====================================
+# Additional Tags
+# ====================================
+
+# Additional tags to apply to resources
+additional_tags = {
+  "Department" = "IT"
+  "Project"    = "Library Management System"
+  "CostCenter" = "12345"
+}
+
+# ====================================
+# Environment-Specific Overrides
+# ====================================
+
+# Development Environment Example:
+# environment = "dev"
+# min_instances = 1
+# max_instances = 3
+# desired_instances = 2
+# db_cpu_core_count = 1
+# db_data_storage_size = 512
+# enable_cost_optimization = true
+# spot_instance_percentage = 80
+
+# Staging Environment Example:
+# environment = "staging"
+# min_instances = 2
+# max_instances = 5
+# desired_instances = 3
+# db_cpu_core_count = 2
+# db_data_storage_size = 1024
+# enable_cost_optimization = true
+# spot_instance_percentage = 50
+
+# Production Environment Example:
+# environment = "prod"
+# min_instances = 3
+# max_instances = 20
+# desired_instances = 5
+# db_cpu_core_count = 4
+# db_data_storage_size = 2048
+# enable_multi_ad = true
+# enable_cross_region_backup = true
+# enable_cost_optimization = false
+# allowed_cidr_blocks = ["203.0.113.0/24", "198.51.100.0/24"]
+
+# ====================================
+# Security Notes
+# ====================================
+#
+# IMPORTANT SECURITY CONSIDERATIONS:
+#
+# 1. SSH Keys:
+#    - Generate unique SSH key pairs for each environment
+#    - Store private keys securely and never commit to version control
+#    - Use strong passphrases for SSH keys
+#
+# 2. Database Passwords:
+#    - Database passwords are auto-generated by Terraform
+#    - They are stored in Terraform state - ensure state is encrypted and secure
+#    - Consider using OCI Vault for additional password management
+#
+# 3. Network Security:
+#    - Restrict allowed_cidr_blocks to only necessary IP ranges
+#    - Use bastion hosts for secure access to private resources
+#    - Enable all available security features in production
+#
+# 4. Access Control:
+#    - Use IAM policies to restrict access to OCI resources
+#    - Enable MFA for all administrative accounts
+#    - Regularly audit and rotate access keys
+#
+# 5. Monitoring:
+#    - Enable all monitoring and alerting features
+#    - Configure appropriate notification channels
+#    - Regularly review security logs and alerts
+#
+# ====================================
+# Getting Started
+# ====================================
+#
+# 1. Set up OCI CLI and authentication:
+#    oci setup config
+#
+# 2. Validate your configuration:
+#    terraform init
+#    terraform validate
+#    terraform plan
+#
+# 3. Deploy the infrastructure:
+#    terraform apply
+#
+# 4. Save important outputs:
+#    terraform output > infrastructure_outputs.txt
+#
+# 5. Configure DNS:
+#    Point your domain to the load balancer IP address
+#
+# 6. Deploy your application using Ansible (Command 7)
+#
+# ====================================

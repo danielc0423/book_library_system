@@ -1,0 +1,75 @@
+---
+# ====================================
+# Common Role Handlers
+# Service Management and System Restarts
+# Command 7: Ansible Configuration Management
+# ====================================
+
+- name: restart sshd
+  systemd:
+    name: sshd
+    state: restarted
+    daemon_reload: yes
+  listen: restart sshd
+
+- name: restart chrony
+  systemd:
+    name: chronyd
+    state: restarted
+    daemon_reload: yes
+  listen: restart chrony
+
+- name: restart fail2ban
+  systemd:
+    name: fail2ban
+    state: restarted
+    daemon_reload: yes
+  listen: restart fail2ban
+
+- name: restart rsyslog
+  systemd:
+    name: rsyslog
+    state: restarted
+    daemon_reload: yes
+  listen: restart rsyslog
+
+- name: restart firewalld
+  systemd:
+    name: firewalld
+    state: restarted
+    daemon_reload: yes
+  listen: restart firewalld
+
+- name: reload systemd
+  systemd:
+    daemon_reload: yes
+  listen: reload systemd
+
+- name: restart network
+  systemd:
+    name: NetworkManager
+    state: restarted
+  listen: restart network
+
+- name: reload firewall
+  command: firewall-cmd --reload
+  listen: reload firewall
+
+- name: restart cron
+  systemd:
+    name: crond
+    state: restarted
+    daemon_reload: yes
+  listen: restart cron
+
+- name: update ca-certificates
+  command: update-ca-certificates
+  listen: update ca-certificates
+
+- name: rebuild initramfs
+  command: dracut -f
+  listen: rebuild initramfs
+
+- name: restart auditd
+  command: service auditd restart
+  listen: restart auditd

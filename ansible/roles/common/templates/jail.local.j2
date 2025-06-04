@@ -1,0 +1,212 @@
+# ====================================
+# Fail2ban Local Configuration Template
+# Intrusion Prevention System
+# Command 7: Ansible Configuration Management
+# ====================================
+
+[DEFAULT]
+# "bantime" is the number of seconds that a host is banned.
+bantime = {{ fail2ban_bantime | default(3600) }}
+
+# A host is banned if it has generated "maxretry" during the last "findtime" seconds.
+findtime = {{ fail2ban_findtime | default(600) }}
+maxretry = {{ fail2ban_maxretry | default(5) }}
+
+# "backend" specifies the backend used to get files modification.
+backend = auto
+
+# "usedns" specifies if jails should trust hostnames in logs
+usedns = warn
+
+# Destination email address used solely for the interpolations in jail.{conf,local} configuration files.
+destemail = {{ fail2ban_destemail | default('admin@example.com') }}
+
+# Sender email address used solely for some actions
+sender = {{ fail2ban_sender | default('fail2ban@' + ansible_hostname) }}
+
+# Default banning action
+banaction = iptables-multiport
+
+# Action shortcuts
+action_mw = %(banaction)s[name=%(__name__)s, port="%(port)s", protocol="%(protocol)s"]
+           %(mta)s-whois[name=%(__name__)s, dest="%(destemail)s"]
+
+action_mwl = %(banaction)s[name=%(__name__)s, port="%(port)s", protocol="%(protocol)s"]
+            %(mta)s-whois-lines[name=%(__name__)s, dest="%(destemail)s", logpath=%(logpath)s]
+
+# Choose default action
+action = %(action_mw)s
+
+# Oracle Cloud specific configuration
+{% if ansible_system_vendor is defined and 'Oracle' in ansible_system_vendor %}
+# Use iptables for Oracle Cloud
+banaction = iptables-multiport
+banaction_allports = iptables-allports
+{% endif %}
+
+# ====================================
+# JAIL CONFIGURATIONS
+# ====================================
+
+# SSH Protection
+[sshd]
+enabled = {{ fail2ban_jails.sshd.enabled | default(true) }}
+port = {{ fail2ban_jails.sshd.port | default(ssh_port) }}
+filter = sshd
+logpath = {{ fail2ban_jails.sshd.logpath | default('/var/log/secure') }}
+maxretry = {{ fail2ban_jails.sshd.maxretry | default(3) }}
+bantime = {{ fail2ban_jails.sshd.bantime | default(3600) }}
+findtime = {{ fail2ban_jails.sshd.findtime | default(600) }}
+
+# SSH Brute Force Protection
+[ssh-iptables]
+enabled = true
+filter = sshd
+action = iptables[name=SSH, port={{ ssh_port | default(22) }}, protocol=tcp]
+logpath = /var/log/secure
+maxretry = 3
+bantime = 86400
+findtime = 600
+
+# HTTP/HTTPS Protection
+{% if 'webservers' in group_names %}
+[http-get-dos]
+enabled = {{ fail2ban_jails['http-get-dos'].enabled | default(true) }}
+port = http,https
+filter = http-get-dos
+logpath = {{ fail2ban_jails['http-get-dos'].logpath | default('/var/log/nginx/access.log') }}
+maxretry = {{ fail2ban_jails['http-get-dos'].maxretry | default(300) }}
+findtime = {{ fail2ban_jails['http-get-dos'].findtime | default(300) }}
+bantime = {{ fail2ban_jails['http-get-dos'].bantime | default(600) }}
+action = iptables[name=http-get-dos, port="http,https", protocol=tcp]
+
+[nginx-http-auth]
+enabled = true
+filter = nginx-http-auth
+port = http,https
+logpath = /var/log/nginx/error.log
+maxretry = 5
+bantime = 3600
+
+[nginx-noscript]
+enabled = true
+port = http,https
+filter = nginx-noscript
+logpath = /var/log/nginx/access.log
+maxretry = 6
+bantime = 86400
+
+[nginx-badbots]
+enabled = true
+port = http,https
+filter = nginx-badbots
+logpath = /var/log/nginx/access.log
+maxretry = 2
+bantime = 86400
+
+[nginx-noproxy]
+enabled = true
+port = http,https
+filter = nginx-noproxy
+logpath = /var/log/nginx/access.log
+maxretry = 2
+bantime = 86400
+{% endif %}
+
+# Django Application Protection
+{% if 'webservers' in group_names %}
+[django-auth]
+enabled = true
+filter = django-auth
+port = http,https
+logpath = /var/log/library-system/application/django.log
+maxretry = 5
+bantime = 3600
+findtime = 300
+
+[django-admin]
+enabled = true
+filter = django-admin
+port = http,https
+logpath = /var/log/library-system/application/django.log
+maxretry = 3
+bantime = 86400
+findtime = 600
+{% endif %}
+
+# Oracle Database Protection
+{% if 'database' in group_names %}
+[oracle-auth]
+enabled = true
+filter = oracle-auth
+port = 1521,1522
+logpath = /opt/oracle/diag/rdbms/*/trace/alert_*.log
+maxretry = 3
+bantime = 86400
+findtime = 600
+{% endif %}
+
+# System Protection
+[system-auth]
+enabled = true
+filter = system-auth
+port = all
+logpath = /var/log/secure
+maxretry = 5
+bantime = 3600
+findtime = 600
+
+# Recidive Protection (repeat offenders)
+[recidive]
+enabled = true
+filter = recidive
+logpath = /var/log/fail2ban.log
+action = iptables-allports[name=recidive]
+bantime = 604800  ; 1 week
+findtime = 86400   ; 1 day
+maxretry = 5
+
+# Environment-specific configurations
+{% if environment == 'development' %}
+# Development environment - more lenient
+[DEFAULT]
+bantime = 300
+maxretry = 10
+findtime = 1200
+{% elif environment == 'production' %}
+# Production environment - strict security
+[DEFAULT]
+bantime = 86400
+maxretry = 3
+findtime = 300
+
+# Additional protection for production
+[portscan]
+enabled = true
+filter = portscan
+action = iptables-allports[name=portscan, protocol=all]
+logpath = /var/log/messages
+maxretry = 1
+bantime = 604800
+
+[slowloris]
+enabled = true
+filter = slowloris
+port = http,https
+logpath = /var/log/nginx/access.log
+maxretry = 1
+bantime = 86400
+{% endif %}
+
+# Whitelist trusted IPs
+{% if fail2ban_whitelist is defined %}
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1{% for ip in fail2ban_whitelist %} {{ ip }}{% endfor %}
+{% else %}
+[DEFAULT]
+ignoreip = 127.0.0.1/8 ::1 10.0.0.0/16
+{% endif %}
+
+# Custom filters path
+[DEFAULT]
+filter = /etc/fail2ban/filter.d/%(name)s.conf

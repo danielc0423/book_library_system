@@ -1,0 +1,349 @@
+---
+# ====================================
+# Database Role Main Tasks
+# Oracle Database Client Configuration
+# ====================================
+
+- name: "Oracle Setup - Check for existing Oracle installation"
+  stat:
+    path: /opt/oracle
+  register: oracle_installation
+  tags: ['database', 'oracle', 'check']
+
+- name: "Oracle Setup - Create Oracle user and group"
+  group:
+    name: "{{ oracle_group }}"
+    state: present
+  tags: ['database', 'oracle', 'user']
+
+- name: "Oracle Setup - Create Oracle user"
+  user:
+    name: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    home: "{{ oracle_home }}"
+    shell: /bin/bash
+    system: yes
+    create_home: yes
+    state: present
+  tags: ['database', 'oracle', 'user']
+
+- name: "Oracle Setup - Create Oracle directories"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: '0755'
+  with_items:
+    - "{{ oracle_base }}"
+    - "{{ oracle_home }}"
+    - "{{ oracle_inventory }}"
+    - "{{ oracle_wallet_location }}"
+    - /var/log/oracle
+    - /opt/oracle/network/admin
+    - /opt/oracle/client
+    - /opt/oracle/scripts
+  tags: ['database', 'oracle', 'directories']
+
+- name: "Oracle Setup - Install required packages for Oracle client"
+  dnf:
+    name:
+      # Oracle prerequisites
+      - libaio
+      - libaio-devel
+      - libnsl
+      - libcrypt-compat
+      - libxcrypt-compat
+      - elfutils-libelf-devel
+      - glibc-devel
+      - gcc
+      - gcc-c++
+      - make
+      - unzip
+      - wget
+      - which
+      
+      # Network and security
+      - openssl
+      - openssl-devel
+      - krb5-libs
+      - krb5-devel
+      
+      # Python Oracle connectivity
+      - python3-pip
+      - python3-devel
+      
+      # System utilities
+      - vim
+      - screen
+      - htop
+      
+    state: present
+  tags: ['database', 'packages']
+
+- name: "Oracle Client - Download Oracle Instant Client"
+  get_url:
+    url: "{{ oracle_client_download_url }}"
+    dest: "/tmp/{{ oracle_client_rpm }}"
+    mode: '0644'
+  when: not oracle_installation.stat.exists
+  tags: ['database', 'oracle', 'download']
+
+- name: "Oracle Client - Install Oracle Instant Client RPM"
+  dnf:
+    name: "/tmp/{{ oracle_client_rpm }}"
+    state: present
+    disable_gpg_check: yes
+  when: not oracle_installation.stat.exists
+  tags: ['database', 'oracle', 'install']
+
+- name: "Oracle Client - Download Oracle SQL*Plus"
+  get_url:
+    url: "{{ oracle_sqlplus_download_url }}"
+    dest: "/tmp/{{ oracle_sqlplus_rpm }}"
+    mode: '0644'
+  when: sql_plus_enabled | default(true)
+  tags: ['database', 'oracle', 'sqlplus']
+
+- name: "Oracle Client - Install Oracle SQL*Plus RPM"
+  dnf:
+    name: "/tmp/{{ oracle_sqlplus_rpm }}"
+    state: present
+    disable_gpg_check: yes
+  when: sql_plus_enabled | default(true)
+  tags: ['database', 'oracle', 'sqlplus']
+
+- name: "Oracle Configuration - Set Oracle environment variables"
+  template:
+    src: oracle_env.sh.j2
+    dest: /etc/profile.d/oracle.sh
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['database', 'oracle', 'environment']
+
+- name: "Oracle Configuration - Configure LD_LIBRARY_PATH"
+  lineinfile:
+    path: /etc/ld.so.conf.d/oracle.conf
+    line: "{{ oracle_client_lib_path }}"
+    create: yes
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload ldconfig
+  tags: ['database', 'oracle', 'library']
+
+- name: "Oracle Configuration - Create TNS names configuration"
+  template:
+    src: tnsnames.ora.j2
+    dest: "{{ oracle_network_admin }}/tnsnames.ora"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: '0644'
+  tags: ['database', 'oracle', 'tns']
+
+- name: "Oracle Configuration - Create SQL*Net configuration"
+  template:
+    src: sqlnet.ora.j2
+    dest: "{{ oracle_network_admin }}/sqlnet.ora"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: '0644'
+  tags: ['database', 'oracle', 'sqlnet']
+
+- name: "Wallet Setup - Create wallet directory with proper permissions"
+  file:
+    path: "{{ oracle_wallet_location }}"
+    state: directory
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: '0700'
+  tags: ['database', 'wallet']
+
+- name: "Wallet Setup - Download database wallet from Oracle Cloud"
+  get_url:
+    url: "{{ database_wallet_download_url }}"
+    dest: "/tmp/wallet.zip"
+    headers:
+      Authorization: "Bearer {{ oci_auth_token }}"
+    mode: '0600'
+  when: database_wallet_download_url is defined
+  tags: ['database', 'wallet', 'download']
+
+- name: "Wallet Setup - Extract wallet files"
+  unarchive:
+    src: "/tmp/wallet.zip"
+    dest: "{{ oracle_wallet_location }}"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: '0600'
+    remote_src: yes
+  when: database_wallet_download_url is defined
+  tags: ['database', 'wallet', 'extract']
+
+- name: "Wallet Setup - Configure wallet sqlnet.ora"
+  template:
+    src: wallet_sqlnet.ora.j2
+    dest: "{{ oracle_wallet_location }}/sqlnet.ora"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: '0600'
+  tags: ['database', 'wallet', 'configuration']
+
+- name: "Python Oracle - Install Oracle Python packages"
+  pip:
+    name:
+      - cx_Oracle
+      - oracledb
+    virtualenv: "{{ app_home }}/venv"
+    state: present
+  become_user: "{{ app_user }}"
+  environment:
+    ORACLE_HOME: "{{ oracle_home }}"
+    LD_LIBRARY_PATH: "{{ oracle_client_lib_path }}"
+  tags: ['database', 'python', 'packages']
+
+- name: "Database Connection - Create connection test script"
+  template:
+    src: test_connection.py.j2
+    dest: /opt/oracle/scripts/test_connection.py
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: '0755'
+  tags: ['database', 'testing']
+
+- name: "Database Connection - Create SQL test script"
+  template:
+    src: test_connection.sql.j2
+    dest: /opt/oracle/scripts/test_connection.sql
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: '0644'
+  tags: ['database', 'testing']
+
+- name: "Monitoring Setup - Create database monitoring script"
+  template:
+    src: db_monitor.sh.j2
+    dest: /opt/oracle/scripts/db_monitor.sh
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: '0755'
+  tags: ['database', 'monitoring']
+
+- name: "Backup Setup - Create database backup script"
+  template:
+    src: db_backup.sh.j2
+    dest: /opt/oracle/scripts/db_backup.sh
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: '0755'
+  when: backup_enabled | default(true)
+  tags: ['database', 'backup']
+
+- name: "Security Setup - Configure Oracle client security"
+  template:
+    src: security.conf.j2
+    dest: "{{ oracle_network_admin }}/security.conf"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: '0600'
+  tags: ['database', 'security']
+
+- name: "Logging Setup - Configure Oracle client logging"
+  template:
+    src: logging.conf.j2
+    dest: "{{ oracle_network_admin }}/logging.conf"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: '0644'
+  tags: ['database', 'logging']
+
+- name: "Performance Tuning - Configure connection pooling"
+  template:
+    src: connection_pool.conf.j2
+    dest: "{{ oracle_network_admin }}/connection_pool.conf"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: '0644'
+  when: connection_pooling | default(true)
+  tags: ['database', 'performance']
+
+- name: "Service Management - Create Oracle client service"
+  template:
+    src: oracle-client.service.j2
+    dest: /etc/systemd/system/oracle-client.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - reload systemd
+    - start oracle-client
+  tags: ['database', 'service']
+
+- name: "Validation - Test database connectivity"
+  command: >
+    {{ app_home }}/venv/bin/python /opt/oracle/scripts/test_connection.py
+  environment:
+    ORACLE_HOME: "{{ oracle_home }}"
+    TNS_ADMIN: "{{ oracle_network_admin }}"
+    LD_LIBRARY_PATH: "{{ oracle_client_lib_path }}"
+  become_user: "{{ app_user }}"
+  register: db_connection_test
+  failed_when: db_connection_test.rc != 0
+  tags: ['database', 'validation']
+
+- name: "Validation - Test SQL*Plus connectivity"
+  shell: |
+    echo "SELECT 'Connection successful' FROM dual;" | \
+    {{ oracle_client_bin_path }}/sqlplus -S {{ database_user }}/{{ database_password }}@{{ database_service_name }}
+  environment:
+    ORACLE_HOME: "{{ oracle_home }}"
+    TNS_ADMIN: "{{ oracle_network_admin }}"
+    LD_LIBRARY_PATH: "{{ oracle_client_lib_path }}"
+  register: sqlplus_test
+  failed_when: "'Connection successful' not in sqlplus_test.stdout"
+  when: sql_plus_enabled | default(true)
+  tags: ['database', 'validation', 'sqlplus']
+
+- name: "Cron Setup - Schedule database monitoring"
+  cron:
+    name: "Database connectivity monitoring"
+    minute: "*/5"
+    job: "/opt/oracle/scripts/db_monitor.sh > /var/log/oracle/monitor.log 2>&1"
+    user: "{{ oracle_user }}"
+  when: monitoring_enabled | default(true)
+  tags: ['database', 'monitoring', 'cron']
+
+- name: "Cron Setup - Schedule database backup"
+  cron:
+    name: "Database backup"
+    minute: "0"
+    hour: "2"
+    job: "/opt/oracle/scripts/db_backup.sh > /var/log/oracle/backup.log 2>&1"
+    user: "{{ oracle_user }}"
+  when: backup_enabled | default(true)
+  tags: ['database', 'backup', 'cron']
+
+- name: "Cleanup - Remove temporary files"
+  file:
+    path: "{{ item }}"
+    state: absent
+  with_items:
+    - "/tmp/{{ oracle_client_rpm }}"
+    - "/tmp/{{ oracle_sqlplus_rpm }}"
+    - "/tmp/wallet.zip"
+  tags: ['database', 'cleanup']
+
+- name: "Information - Display database configuration"
+  debug:
+    msg: |
+      Oracle Database Client Configuration Complete:
+      - Oracle Home: {{ oracle_home }}
+      - TNS Admin: {{ oracle_network_admin }}
+      - Wallet Location: {{ oracle_wallet_location }}
+      - Service Names: {{ tnsnames_entries | join(', ') }}
+      - Connection Pool: {{ connection_pooling | default(true) }}
+      - SQL*Plus: {{ sql_plus_enabled | default(true) }}
+      - Monitoring: {{ monitoring_enabled | default(true) }}
+      - Connection Test: {{ 'Successful' if db_connection_test.rc == 0 else 'Failed' }}
+  tags: ['database', 'info']

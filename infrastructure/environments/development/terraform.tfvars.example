@@ -1,0 +1,315 @@
+# ====================================
+# Development Environment Example Variables
+# Oracle Cloud Infrastructure (OCI) 
+# Book Library System
+# ====================================
+
+# ====================================
+# Provider Configuration
+# Required: Update these with your actual OCI credentials
+# ====================================
+
+tenancy_ocid     = "ocid1.tenancy.oc1..example1234567890abcdefghijklmnopqrstuvwxyz"
+user_ocid        = "ocid1.user.oc1..example1234567890abcdefghijklmnopqrstuvwxyz"
+fingerprint      = "ab:cd:ef:12:34:56:78:90:ab:cd:ef:12:34:56:78:90"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "us-ashburn-1"
+compartment_ocid = "ocid1.compartment.oc1..example1234567890abcdefghijklmnopqrstuvwxyz"
+
+# ====================================
+# Development Environment Configuration
+# ====================================
+
+environment_name = "development"
+project_name     = "library-system"
+cost_center      = "Engineering"
+owner_email      = "devteam@yourcompany.com"
+
+# ====================================
+# Database Configuration
+# Required: Set a secure password for development database
+# ====================================
+
+db_admin_password = "DevPassword123!@#"  # Change this to a secure password
+db_name          = "libdevdb"
+
+# ====================================
+# SSH Access Configuration
+# Required: Add your SSH public key
+# ====================================
+
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC... your-email@domain.com"
+
+# Developer IP addresses (use 0.0.0.0/0 for development or specify your IP)
+developer_ip_addresses = [
+  "0.0.0.0/0"          # Allow from anywhere (development only)
+  # "203.0.113.1/32",  # Example: Specific developer IP
+  # "198.51.100.0/24", # Example: Office network
+]
+
+# ====================================
+# Development-Specific Settings
+# ====================================
+
+enable_debug_mode        = true
+enable_hot_reload        = true
+install_dev_dependencies = true
+
+dev_tools_to_install = [
+  "git",
+  "vim",
+  "htop",
+  "curl",
+  "wget",
+  "python3-dev",
+  "python3-pip",
+  "nodejs",
+  "npm",
+  "docker",
+  "docker-compose"
+]
+
+# ====================================
+# Cost Control Settings
+# ====================================
+
+max_monthly_spend      = 300  # USD - Adjust based on your budget
+auto_shutdown_enabled  = true
+
+business_hours = {
+  start_hour    = 9     # 9 AM
+  end_hour      = 18    # 6 PM
+  timezone      = "America/New_York"
+  weekdays_only = true
+}
+
+# ====================================
+# Network Configuration
+# ====================================
+
+allow_internet_access = true
+
+# Custom security rules for development access
+custom_security_rules = [
+  {
+    direction   = "INGRESS"
+    protocol    = "TCP"
+    source      = "0.0.0.0/0"
+    destination = "10.0.2.0/24"
+    port_range  = "3000-3001"
+    description = "Allow React development server"
+  },
+  {
+    direction   = "INGRESS"
+    protocol    = "TCP"
+    source      = "0.0.0.0/0"
+    destination = "10.0.2.0/24"
+    port_range  = "8080"
+    description = "Allow development proxy"
+  }
+]
+
+# ====================================
+# Monitoring and Logging
+# ====================================
+
+log_level                      = "DEBUG"
+enable_performance_monitoring  = false  # Disabled for cost savings
+metrics_collection_interval    = 300    # 5 minutes
+
+# ====================================
+# Application Configuration
+# ====================================
+
+django_debug_mode  = true
+django_secret_key  = "dev-secret-key-change-in-production-12345"
+
+allowed_hosts = [
+  "*",                    # Allow all hosts in development
+  "localhost",
+  "127.0.0.1",
+  "dev.library.local"
+]
+
+cors_allowed_origins = [
+  "http://localhost:3000",     # React development server
+  "http://localhost:8080",     # Alternative dev server
+  "http://127.0.0.1:3000",
+  "http://dev.library.local"
+]
+
+# ====================================
+# Testing Configuration
+# ====================================
+
+enable_test_data = true
+test_user_count  = 50    # Smaller dataset for development
+test_book_count  = 200   # Smaller dataset for development
+
+# ====================================
+# Backup and Recovery
+# ====================================
+
+backup_frequency     = "weekly"
+backup_retention_days = 7
+
+# ====================================
+# External Service Configuration
+# Note: These are mock configurations for development
+# ====================================
+
+external_services = {
+  email_service = {
+    enabled  = false
+    provider = "mock"
+    api_key  = "mock-api-key-for-development"
+  }
+  storage_service = {
+    enabled     = false
+    bucket_name = "dev-library-storage"
+  }
+  cdn_service = {
+    enabled             = false
+    distribution_domain = "dev-cdn.library.local"
+  }
+}
+
+# ====================================
+# Object Storage Configuration
+# Required: Update with your actual namespace
+# ====================================
+
+object_storage_namespace = "your-tenancy-namespace"  # Replace with your actual namespace
+
+create_dev_buckets = true
+dev_bucket_names = [
+  "dev-library-static",
+  "dev-library-media",
+  "dev-library-backups",
+  "dev-library-logs"
+]
+
+# ====================================
+# Integration Testing Configuration
+# ====================================
+
+enable_integration_tests = true
+
+test_environment_config = {
+  selenium_grid_enabled     = false  # Disabled for cost savings
+  api_testing_enabled       = true
+  load_testing_enabled      = false  # Disabled for cost savings
+  security_testing_enabled  = false  # Disabled for cost savings
+}
+
+# ====================================
+# Developer Access Configuration
+# Update with your team members' information
+# ====================================
+
+developer_groups = {
+  "backend-developers" = {
+    members = [
+      "john.doe@yourcompany.com",
+      "jane.smith@yourcompany.com"
+    ]
+    permissions = ["compute:*", "database:read", "logging:read"]
+    ssh_access  = true
+    admin_access = false
+  }
+  "frontend-developers" = {
+    members = [
+      "alice.johnson@yourcompany.com",
+      "bob.wilson@yourcompany.com"
+    ]
+    permissions = ["compute:read", "logging:read"]
+    ssh_access  = false
+    admin_access = false
+  }
+  "devops-team" = {
+    members = [
+      "devops@yourcompany.com",
+      "admin@yourcompany.com"
+    ]
+    permissions = ["*:*"]
+    ssh_access  = true
+    admin_access = true
+  }
+}
+
+# ====================================
+# Environment Lifecycle Configuration
+# ====================================
+
+environment_lifecycle = {
+  auto_destroy_enabled           = false  # Set to true if you want auto-cleanup
+  max_age_days                  = 30
+  warning_days_before_destroy   = 7
+  preserve_data                 = false   # Set to true to preserve database data
+}
+
+scheduled_maintenance = {
+  enabled            = true
+  day_of_week        = "Sunday"
+  start_time         = "02:00"
+  duration_hours     = 2
+  auto_apply_updates = true
+}
+
+# ====================================
+# Feature Flags for Development
+# Enable/disable features for testing
+# ====================================
+
+feature_flags = {
+  "enable_new_ui"                = true
+  "enable_advanced_search"       = true
+  "enable_book_recommendations"  = true
+  "enable_social_features"       = false
+  "enable_mobile_app_api"        = true
+  "enable_analytics_dashboard"   = false
+  "enable_ai_features"           = false
+}
+
+# ====================================
+# Custom Tags
+# ====================================
+
+custom_tags = {
+  Environment      = "development"
+  Purpose          = "development"
+  AutoShutdown     = "enabled"
+  CostOptimized    = "true"
+  BackupRequired   = "false"
+  CreatedBy        = "terraform"
+  ManagedBy        = "devops-team"
+  Project          = "library-system"
+  Criticality      = "low"
+  DataClass        = "test"
+}
+
+# ====================================
+# Notes for Development Setup
+# ====================================
+
+# 1. Copy this file to terraform.tfvars and update the values
+# 2. Ensure your OCI credentials are properly configured
+# 3. Update the SSH public key with your actual public key
+# 4. Adjust IP addresses to match your development setup
+# 5. Set appropriate cost limits for your environment
+# 6. Review and customize feature flags based on what you're testing
+
+# Security Notes for Development:
+# - This configuration is optimized for development and testing
+# - Security rules are more permissive than production
+# - Debug mode is enabled for easier troubleshooting
+# - Cost optimization features are enabled
+# - Auto-shutdown is configured to save costs during non-business hours
+
+# To deploy:
+# 1. terraform init
+# 2. terraform plan
+# 3. terraform apply
+
+# To destroy (when done with development):
+# terraform destroy

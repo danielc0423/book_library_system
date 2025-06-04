@@ -1,0 +1,259 @@
+---
+# ====================================
+# Development Environment Group Variables
+# Book Library System - Development Configuration
+# ====================================
+
+# Environment Configuration
+environment: "development"
+target_environment: "development"
+deployment_stage: "dev"
+debug_mode: true
+
+# Application Configuration
+app_name: "library-system-dev"
+app_version: "develop"
+django_debug: true
+django_log_level: "DEBUG"
+django_settings_module: "library_system.settings.development"
+
+# Django Admin Configuration
+django_admin_username: "admin"
+django_admin_email: "admin@dev.library-system.com"
+create_django_superuser: true
+
+# Development URLs and Domains
+load_balancer_fqdn: "dev-library.localhost"
+frontend_url: "http://localhost:3000"
+backend_url: "http://localhost:8000"
+
+# Security Configuration (Relaxed for Development)
+disable_root_login: false
+fail2ban_enabled: false
+ssl_enabled: false
+ssl_certificate_type: "self_signed"
+validate_ssl_certs: false
+csrf_cookie_secure: false
+session_cookie_secure: false
+
+# CORS Configuration (Permissive for Development)
+cors_allow_all_origins: true
+cors_allowed_origins: []
+cors_allow_credentials: true
+
+# Database Configuration
+database_name: "LIBRARY_DEV_HIGH"
+database_user: "LIBRARY_DEV"
+database_service_name: "library_dev_high"
+connection_pool_min: 1
+connection_pool_max: 5
+
+# Performance Configuration (Minimal for Development)
+gunicorn_workers: 2
+gunicorn_worker_class: "sync"
+gunicorn_reload: true
+gunicorn_timeout: 300
+nginx_worker_processes: 1
+nginx_worker_connections: 512
+
+# Caching Configuration
+proxy_cache_enabled: false
+redis_enabled: true
+cache_timeout: 60
+
+# Monitoring Configuration
+monitoring_enabled: true
+monitoring_interval: 600
+install_prometheus: false
+prometheus_enabled: false
+grafana_enabled: false
+node_exporter_enabled: true
+oracle_exporter_enabled: true
+nginx_exporter_enabled: false
+promtail_enabled: false
+
+# Logging Configuration
+log_level: "DEBUG"
+log_retention_days: 7
+django_log_level: "DEBUG"
+gunicorn_log_level: "debug"
+
+# Rate Limiting (Disabled for Development)
+rate_limit_enabled: false
+api_rate_limit: "10000/hour"
+api_throttle_anon: "1000/hour"
+api_throttle_user: "10000/hour"
+
+# Backup Configuration
+backup_enabled: false
+backup_retention_days: 3
+
+# Deployment Configuration
+deployment_strategy: "100%"
+enable_rollback: true
+force_deployment: true
+app_from_git: false
+
+# Development Tools
+enable_debug_toolbar: true
+allow_password_reset: true
+enable_django_extensions: true
+
+# Email Configuration (Local SMTP)
+email_backend: "django.core.mail.backends.console.EmailBackend"
+email_host: "localhost"
+email_port: 1025
+email_use_tls: false
+
+# Oracle Integration (Disabled for Development)
+oic_enabled: false
+analytics_enabled: false
+notification_service_enabled: false
+
+# File Upload Configuration
+max_upload_size: 5242880  # 5MB
+allowed_extensions: [".pdf", ".doc", ".docx", ".txt", ".jpg", ".png"]
+
+# Testing Configuration
+run_tests: true
+test_coverage: true
+test_parallel: false
+
+# Development Specific Packages
+development_packages:
+  - django-debug-toolbar
+  - django-extensions
+  - ipython
+  - pytest-django
+  - factory-boy
+  - coverage
+
+# Static Files Configuration
+static_file_serving: "django"  # django or nginx
+static_files_expires: "1d"
+media_files_expires: "1d"
+
+# Resource Limits (Minimal for Development)
+max_memory_mb: 2048
+max_cpu_cores: 2
+disk_size_gb: 20
+
+# Network Configuration
+allowed_hosts:
+  - "localhost"
+  - "127.0.0.1"
+  - "dev-library.localhost"
+  - "*.ngrok.io"
+
+# Development Database Settings
+development_db_settings:
+  debug_sql: true
+  log_queries: true
+  query_timeout: 300
+
+# API Documentation
+api_docs_enabled: true
+api_docs_public: true
+
+# Auto-reload Configuration
+auto_reload_enabled: true
+hot_reload_enabled: true
+
+# Development Middleware
+additional_middleware:
+  - "debug_toolbar.middleware.DebugToolbarMiddleware"
+
+# Development URLs
+additional_urls:
+  - "__debug__/"
+
+# Notification Configuration
+notification_email: "dev@library-system.com"
+send_notifications: false
+
+# SSL Configuration (Self-signed for Development)
+generate_dhparam: false
+
+# Firewall Configuration (Permissive)
+custom_firewall_ports:
+  - "3000/tcp"  # React dev server
+  - "8000/tcp"  # Django dev server
+  - "5432/tcp"  # PostgreSQL (if needed)
+  - "6379/tcp"  # Redis
+  - "9000/tcp"  # Development tools
+
+# Development Specific Environment Variables
+development_env_vars:
+  DJANGO_DEBUG: "True"
+  DJANGO_LOG_LEVEL: "DEBUG"
+  DEVELOPMENT_MODE: "True"
+  ENABLE_DEBUG_TOOLBAR: "True"
+  CORS_ALLOW_ALL_ORIGINS: "True"
+
+# Oracle Cloud Configuration (Development Compartment)
+oci_region: "us-ashburn-1"
+oci_compartment_id: "ocid1.compartment.oc1..development"
+
+# Development Team Configuration
+development_team:
+  - username: "developer1"
+    email: "dev1@library-system.com"
+    role: "developer"
+  - username: "developer2"
+    email: "dev2@library-system.com"
+    role: "developer"
+
+# Git Configuration
+git_branch: "develop"
+git_auto_pull: true
+git_reset_hard: true
+
+# IDE Configuration Support
+ide_support:
+  vscode_settings: true
+  pycharm_settings: true
+  enable_debugger: true
+
+# Development Utilities
+development_utilities:
+  shell_plus: true
+  notebook: true
+  graph_models: true
+  sql_explorer: true
+
+# Fixture Configuration
+load_fixtures: true
+fixture_files:
+  - "development_data.json"
+  - "test_users.json"
+  - "sample_books.json"
+
+# Development Performance
+development_performance:
+  disable_migrations: false
+  use_dummy_cache: true
+  skip_validations: false
+
+# Container Configuration (if using Docker)
+container_config:
+  enable_container: false
+  container_registry: "localhost:5000"
+  image_tag: "dev-latest"
+
+# Development Security (Relaxed)
+development_security:
+  csrf_protection: false
+  session_security: false
+  force_https: false
+  secure_headers: false
+
+# Local Services
+local_services:
+  mailhog: true
+  redis: true
+  minio: false
+
+# Cleanup Configuration
+cleanup_on_deploy: false
+cleanup_logs: true
+cleanup_temp_files: true

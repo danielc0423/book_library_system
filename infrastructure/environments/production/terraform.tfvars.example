@@ -1,0 +1,198 @@
+# ====================================
+# Production Environment Example Variables
+# Oracle Cloud Infrastructure (OCI) 
+# Book Library System
+# ====================================
+
+# ====================================
+# Provider Configuration
+# Required: Update these with your actual OCI credentials
+# ====================================
+
+tenancy_ocid     = "ocid1.tenancy.oc1..example1234567890abcdefghijklmnopqrstuvwxyz"
+user_ocid        = "ocid1.user.oc1..example1234567890abcdefghijklmnopqrstuvwxyz"
+fingerprint      = "ab:cd:ef:12:34:56:78:90:ab:cd:ef:12:34:56:78:90"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "us-ashburn-1"
+backup_region    = "us-phoenix-1"
+compartment_ocid = "ocid1.compartment.oc1..example1234567890abcdefghijklmnopqrstuvwxyz"
+
+# ====================================
+# Production Environment Configuration
+# ====================================
+
+environment_name = "production"
+project_name     = "library-system"
+business_unit    = "Digital Services"
+cost_center      = "Production Operations"
+owner_email      = "production-ops@yourcompany.com"
+
+# ====================================
+# Domain Configuration
+# Required: Set your production domain
+# ====================================
+
+production_domain_name = "library.yourcompany.com"
+
+# ====================================
+# Database Configuration
+# Required: Set secure production database password
+# ====================================
+
+db_admin_password = "ProductionSecurePassword123!@#$%^"  # Use strong password
+db_name          = "libproddb"
+db_cpu_core_count = 4
+db_max_cpu_core_count = 16
+db_storage_size_tb = 2
+
+enable_cross_region_dr = true
+
+db_maintenance_window = {
+  day_of_week = "SUNDAY"
+  start_hour  = 2
+  duration_hours = 4
+}
+
+# ====================================
+# SSH Access Configuration
+# Required: Production SSH key for emergency access only
+# ====================================
+
+ssh_public_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC... production-emergency@yourcompany.com"
+
+# ====================================
+# Network Configuration
+# ====================================
+
+enable_multi_region = false  # Set to true for global deployment
+enable_fastconnect = false   # Set to true if using dedicated connectivity
+enable_hybrid_connectivity = false
+
+# ====================================
+# Compute Configuration
+# ====================================
+
+app_storage_size_gb = 1000  # 1TB for production application data
+
+# ====================================
+# Monitoring Configuration
+# ====================================
+
+enable_external_monitoring = true
+
+synthetic_monitor_locations = [
+  "aws-us-east-1",
+  "aws-us-west-2", 
+  "aws-eu-west-1",
+  "gcp-us-central1",
+  "azure-eastus"
+]
+
+# External monitoring endpoints (configure for your monitoring systems)
+external_monitoring_endpoints = [
+  {
+    name = "datadog"
+    url = "https://api.datadoghq.com/api/v1/check_run"
+    authentication = {
+      type = "api_key"
+      credentials = {
+        api_key = "your-datadog-api-key"
+      }
+    }
+  }
+]
+
+# ====================================
+# Security and Compliance
+# ====================================
+
+compliance_frameworks = ["SOX", "PCI-DSS", "GDPR", "SOC2", "ISO27001"]
+
+# ====================================
+# Cost Management
+# ====================================
+
+production_budget_limit = 15000  # $15,000 monthly budget
+
+# ====================================
+# Object Storage Configuration
+# Required: Update with your actual namespace
+# ====================================
+
+object_storage_namespace = "your-tenancy-namespace"
+
+# ====================================
+# Custom Tags for Production
+# ====================================
+
+custom_tags = {
+  Environment     = "production"
+  Purpose         = "production-workload"
+  DataClass       = "confidential"
+  Criticality     = "high"
+  Compliance      = "sox,pci-dss,gdpr"
+  BackupRequired  = "true"
+  MonitoringLevel = "comprehensive"
+  SecurityTier    = "maximum"
+  AvailabilityTier = "high"
+  PerformanceTier = "premium"
+  CostCenter      = "Production Operations"
+  Owner           = "Production Team"
+  Project         = "library-system"
+  ManagedBy       = "terraform"
+  LastUpdated     = "2025-06-03"
+  BusinessUnit    = "Digital Services"
+}
+
+# ====================================
+# Notes for Production Deployment
+# ====================================
+
+# CRITICAL PRODUCTION SETUP STEPS:
+# 1. Copy this file to terraform.tfvars and update ALL values
+# 2. Ensure OCI credentials are securely configured
+# 3. Use production-grade SSH keys with proper security
+# 4. Set strong database passwords (minimum 16 characters)
+# 5. Configure proper domain name and SSL certificates
+# 6. Review and adjust cost limits based on your requirements
+# 7. Set up monitoring and alerting endpoints
+# 8. Ensure compliance requirements are met
+# 9. Configure backup and disaster recovery settings
+# 10. Test all configurations in staging environment first
+
+# SECURITY CONSIDERATIONS:
+# - This configuration implements maximum security settings
+# - All access is through secure channels only
+# - Comprehensive monitoring and alerting is enabled
+# - Data encryption at rest and in transit
+# - Regular security scanning and vulnerability assessment
+# - Compliance monitoring for multiple frameworks
+# - Audit logging with long-term retention
+
+# HIGH AVAILABILITY FEATURES:
+# - Multi-AZ deployment across availability domains
+# - Auto-scaling based on demand
+# - Database Data Guard for disaster recovery
+# - Cross-region backup and replication
+# - Load balancing with health checks
+# - Comprehensive monitoring and alerting
+
+# PERFORMANCE OPTIMIZATIONS:
+# - High-performance compute instances
+# - Premium storage with high IOPS
+# - Database auto-scaling capabilities
+# - Content delivery network integration
+# - Application performance monitoring
+# - Synthetic monitoring from multiple locations
+
+# To deploy production environment:
+# 1. terraform init
+# 2. terraform workspace new production
+# 3. terraform plan -var-file=terraform.tfvars
+# 4. terraform apply -var-file=terraform.tfvars
+
+# To update production (use caution):
+# terraform plan -var-file=terraform.tfvars
+# terraform apply -var-file=terraform.tfvars
+
+# NEVER run terraform destroy on production!

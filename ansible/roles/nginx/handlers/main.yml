@@ -1,0 +1,60 @@
+---
+# ====================================
+# Nginx Role Handlers
+# Service Management and Configuration Reload
+# Command 7: Ansible Configuration Management
+# ====================================
+
+- name: restart nginx
+  systemd:
+    name: nginx
+    state: restarted
+    daemon_reload: yes
+  listen: restart nginx
+
+- name: reload nginx
+  systemd:
+    name: nginx
+    state: reloaded
+  listen: reload nginx
+
+- name: start nginx
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+  listen: start nginx
+
+- name: stop nginx
+  systemd:
+    name: nginx
+    state: stopped
+  listen: stop nginx
+
+- name: validate nginx config
+  command: nginx -t
+  listen: validate nginx config
+
+- name: reload nginx certificates
+  command: nginx -s reload
+  listen: reload nginx certificates
+
+- name: restart fail2ban
+  systemd:
+    name: fail2ban
+    state: restarted
+    daemon_reload: yes
+  listen: restart fail2ban
+  when: fail2ban_enabled | default(true)
+
+- name: reload systemd
+  systemd:
+    daemon_reload: yes
+  listen: reload systemd
+
+- name: update nginx cache
+  file:
+    path: "{{ proxy_cache_path }}"
+    state: absent
+  listen: update nginx cache
+  when: proxy_cache_enabled | default(true)

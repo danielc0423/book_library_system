@@ -1,0 +1,316 @@
+---
+# ====================================
+# Main Site Playbook - Book Library System
+# Oracle Cloud Infrastructure Deployment
+# ====================================
+
+- name: "Deploy Book Library System - Complete Infrastructure and Application"
+  hosts: all
+  become: yes
+  gather_facts: yes
+  serial: "{{ deployment_strategy | default('25%') }}"
+  
+  vars:
+    deployment_timestamp: "{{ ansible_date_time.epoch }}"
+    app_version: "{{ app_version | default('latest') }}"
+    environment: "{{ target_environment | default('development') }}"
+    
+  pre_tasks:
+    - name: "Validate deployment prerequisites"
+      assert:
+        that:
+          - target_environment is defined
+          - target_environment in ['development', 'staging', 'production']
+          - app_version is defined
+        fail_msg: "Required variables not defined: target_environment, app_version"
+        success_msg: "Deployment prerequisites validated"
+      tags: ['validation', 'always']
+    
+    - name: "Create deployment log directory"
+      file:
+        path: "/var/log/ansible-deployment"
+        state: directory
+        mode: '0755'
+      tags: ['always']
+    
+    - name: "Log deployment start"
+      lineinfile:
+        path: "/var/log/ansible-deployment/deployment.log"
+        line: "{{ ansible_date_time.iso8601 }} - Starting deployment of {{ app_version }} to {{ environment }}"
+        create: yes
+      tags: ['always']
+
+# ==============================================
+# SYSTEM FOUNDATION AND SECURITY HARDENING
+# ==============================================
+- name: "System Setup and Security Hardening"
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  roles:
+    - role: common
+      tags: ['common', 'system', 'security']
+    - role: security
+      tags: ['security', 'hardening']
+  
+  post_tasks:
+    - name: "Verify system setup completion"
+      debug:
+        msg: "System setup and security hardening completed successfully"
+
+# ==============================================
+# DATABASE TIER CONFIGURATION
+# ==============================================
+- name: "Database Configuration and Client Setup"
+  hosts: database
+  become: yes
+  gather_facts: yes
+  
+  roles:
+    - role: database
+      tags: ['database', 'oracle']
+  
+  post_tasks:
+    - name: "Verify database connectivity"
+      command: /opt/oracle/product/19c/client_1/bin/sqlplus -v
+      register: oracle_version
+      failed_when: oracle_version.rc != 0
+      tags: ['verification']
+
+# ==============================================
+# APPLICATION TIER DEPLOYMENT
+# ==============================================
+- name: "Python Application Deployment"
+  hosts: webservers
+  become: yes
+  gather_facts: yes
+  serial: "{{ app_deployment_strategy | default('50%') }}"
+  
+  pre_tasks:
+    - name: "Check application health before deployment"
+      uri:
+        url: "http://{{ inventory_hostname }}:8000/health/"
+        method: GET
+        timeout: 10
+      register: health_check
+      failed_when: false
+      when: not (force_deployment | default(false))
+      tags: ['health-check']
+  
+  roles:
+    - role: python
+      tags: ['python', 'django', 'application']
+  
+  post_tasks:
+    - name: "Verify application deployment"
+      uri:
+        url: "http://{{ inventory_hostname }}:8000/api/v1/health/"
+        method: GET
+        timeout: 30
+        status_code: 200
+      register: app_health
+      retries: 5
+      delay: 10
+      tags: ['verification']
+    
+    - name: "Application deployment verification"
+      debug:
+        msg: "Application successfully deployed and responding at {{ inventory_hostname }}"
+
+# ==============================================
+# WEB SERVER AND LOAD BALANCER CONFIGURATION
+# ==============================================
+- name: "Web Server Configuration"
+  hosts: webservers
+  become: yes
+  gather_facts: yes
+  
+  roles:
+    - role: nginx
+      tags: ['nginx', 'webserver', 'ssl']
+  
+  post_tasks:
+    - name: "Verify web server configuration"
+      uri:
+        url: "https://{{ inventory_hostname }}/health/"
+        method: GET
+        timeout: 10
+        validate_certs: "{{ validate_ssl_certs | default(true) }}"
+      register: web_health
+      tags: ['verification']
+
+# ==============================================
+# MONITORING AND OBSERVABILITY
+# ==============================================
+- name: "Monitoring and Logging Setup"
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  roles:
+    - role: monitoring
+      tags: ['monitoring', 'logging', 'observability']
+  
+  post_tasks:
+    - name: "Verify monitoring agent status"
+      systemd:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      with_items:
+        - node_exporter
+        - promtail
+        - oracle_exporter
+      tags: ['verification']
+
+# ==============================================
+# LOAD BALANCER CONFIGURATION
+# ==============================================
+- name: "Load Balancer Setup"
+  hosts: loadbalancer
+  become: yes
+  gather_facts: yes
+  
+  roles:
+    - role: nginx
+      nginx_config_type: loadbalancer
+      tags: ['loadbalancer', 'nginx']
+  
+  post_tasks:
+    - name: "Verify load balancer health"
+      uri:
+        url: "https://{{ load_balancer_fqdn }}/health/"
+        method: GET
+        timeout: 10
+        validate_certs: "{{ validate_ssl_certs | default(true) }}"
+      delegate_to: localhost
+      tags: ['verification']
+
+# ==============================================
+# POST-DEPLOYMENT VERIFICATION
+# ==============================================
+- name: "Post-Deployment Verification and Testing"
+  hosts: localhost
+  become: no
+  gather_facts: no
+  
+  tasks:
+    - name: "Run comprehensive health checks"
+      uri:
+        url: "https://{{ item }}/api/v1/health/"
+        method: GET
+        timeout: 30
+        validate_certs: "{{ validate_ssl_certs | default(true) }}"
+      with_items: "{{ groups['webservers'] }}"
+      register: health_results
+      tags: ['verification', 'health-check']
+    
+    - name: "Verify Oracle Integration Cloud connectivity"
+      uri:
+        url: "https://{{ oic_endpoint }}/ic/api/integration/v1/status"
+        method: GET
+        headers:
+          Authorization: "Basic {{ oic_auth_token }}"
+        timeout: 30
+      register: oic_status
+      when: oic_endpoint is defined
+      tags: ['verification', 'oic']
+    
+    - name: "Database connectivity test"
+      uri:
+        url: "https://{{ load_balancer_fqdn }}/api/v1/database/health/"
+        method: GET
+        timeout: 30
+        validate_certs: "{{ validate_ssl_certs | default(true) }}"
+      register: db_health
+      tags: ['verification', 'database']
+    
+    - name: "Generate deployment report"
+      template:
+        src: templates/deployment_report.j2
+        dest: "/tmp/deployment_report_{{ deployment_timestamp }}.txt"
+      delegate_to: localhost
+      tags: ['reporting']
+    
+    - name: "Log deployment completion"
+      lineinfile:
+        path: "/var/log/ansible-deployment/deployment.log"
+        line: "{{ ansible_date_time.iso8601 }} - Deployment completed successfully for {{ app_version }} to {{ environment }}"
+      delegate_to: "{{ item }}"
+      with_items: "{{ groups['all'] }}"
+      tags: ['logging']
+
+# ==============================================
+# NOTIFICATION AND CLEANUP
+# ==============================================
+- name: "Deployment Notification and Cleanup"
+  hosts: localhost
+  become: no
+  gather_facts: no
+  
+  tasks:
+    - name: "Send deployment success notification"
+      mail:
+        to: "{{ notification_email }}"
+        subject: "Deployment Success - {{ environment | title }} Environment"
+        body: |
+          Deployment completed successfully:
+          
+          Environment: {{ environment }}
+          Version: {{ app_version }}
+          Timestamp: {{ ansible_date_time.iso8601 }}
+          
+          All health checks passed.
+          
+          Deployment Report: /tmp/deployment_report_{{ deployment_timestamp }}.txt
+      when: 
+        - notification_email is defined
+        - send_notifications | default(true)
+      tags: ['notification']
+    
+    - name: "Clean up temporary files"
+      file:
+        path: "{{ item }}"
+        state: absent
+      with_items:
+        - /tmp/ansible_deployment_*
+        - /tmp/app_backup_*
+      tags: ['cleanup']
+
+# ==============================================
+# ERROR HANDLING AND ROLLBACK
+# ==============================================
+- name: "Error Handling and Rollback"
+  hosts: all
+  become: yes
+  gather_facts: no
+  
+  tasks:
+    - name: "Deployment rollback procedure"
+      include_tasks: tasks/rollback.yml
+      when: 
+        - deployment_failed is defined
+        - deployment_failed | bool
+        - enable_rollback | default(true)
+      tags: ['rollback', 'never']
+    
+    - name: "Send failure notification"
+      mail:
+        to: "{{ notification_email }}"
+        subject: "Deployment FAILED - {{ environment | title }} Environment"
+        body: |
+          Deployment FAILED:
+          
+          Environment: {{ environment }}
+          Version: {{ app_version }}
+          Timestamp: {{ ansible_date_time.iso8601 }}
+          
+          Please check logs for details.
+          Rollback initiated: {{ enable_rollback | default(true) }}
+      when: 
+        - deployment_failed is defined
+        - deployment_failed | bool
+        - notification_email is defined
+      delegate_to: localhost
+      tags: ['notification', 'failure']

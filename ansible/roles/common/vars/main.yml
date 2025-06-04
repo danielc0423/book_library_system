@@ -1,0 +1,261 @@
+---
+# ====================================
+# Common Role Variables
+# System Configuration Variables
+# Command 7: Ansible Configuration Management
+# ====================================
+
+# System Configuration
+system_timezone: "UTC"
+selinux_state: "enforcing"
+disable_root_login: true
+cleanup_unnecessary_packages: true
+enable_maintenance_crons: true
+
+# Application User Configuration
+app_user: "libraryapp"
+app_group: "libraryapp"
+app_home: "/opt/library-system"
+app_user_sudo: false
+
+# SSH Configuration
+ssh_port: 22
+ssh_max_auth_tries: 3
+ssh_client_alive_interval: 300
+ssh_client_alive_count_max: 2
+ssh_max_sessions: 4
+ssh_max_startups: "10:30:60"
+ssh_login_grace_time: 30
+ssh_permit_empty_passwords: false
+ssh_password_authentication: false
+ssh_challenge_response_authentication: false
+ssh_pubkey_authentication: true
+ssh_use_pam: true
+ssh_x11_forwarding: false
+ssh_allow_tcp_forwarding: false
+ssh_gateway_ports: false
+ssh_permit_tunnel: false
+
+# Allowed SSH users (will be populated by group vars)
+allowed_ssh_users:
+  - "opc"
+  - "ansible"
+  - "{{ app_user }}"
+
+# Firewall Configuration
+enable_firewall: true
+custom_firewall_ports: []
+
+# Default firewall services
+firewall_services:
+  - ssh
+  - http
+  - https
+
+# Fail2ban Configuration
+fail2ban_enabled: true
+fail2ban_bantime: 3600
+fail2ban_findtime: 600
+fail2ban_maxretry: 5
+fail2ban_destemail: "admin@example.com"
+fail2ban_sender: "fail2ban@{{ ansible_hostname }}"
+
+# Fail2ban jails configuration
+fail2ban_jails:
+  sshd:
+    enabled: true
+    port: "{{ ssh_port }}"
+    filter: sshd
+    logpath: /var/log/secure
+    maxretry: 3
+    bantime: 3600
+  http-get-dos:
+    enabled: true
+    port: "http,https"
+    filter: http-get-dos
+    logpath: /var/log/nginx/access.log
+    maxretry: 300
+    findtime: 300
+    bantime: 600
+
+# System Tuning Parameters
+kernel_parameters:
+  # Memory management
+  vm.swappiness: 10
+  vm.dirty_ratio: 15
+  vm.dirty_background_ratio: 5
+  
+  # Network performance
+  net.core.rmem_max: 134217728
+  net.core.wmem_max: 134217728
+  net.ipv4.tcp_rmem: "4096 65536 134217728"
+  net.ipv4.tcp_wmem: "4096 65536 134217728"
+  net.core.netdev_max_backlog: 5000
+  net.ipv4.tcp_congestion_control: "bbr"
+  net.ipv4.tcp_slow_start_after_idle: 0
+  
+  # File system
+  fs.file-max: 1000000
+  
+  # Security
+  net.ipv4.conf.all.rp_filter: 1
+  net.ipv4.conf.default.rp_filter: 1
+  net.ipv4.icmp_echo_ignore_broadcasts: 1
+  net.ipv4.conf.all.accept_source_route: 0
+  net.ipv4.conf.default.accept_source_route: 0
+  net.ipv4.conf.all.accept_redirects: 0
+  net.ipv4.conf.default.accept_redirects: 0
+  net.ipv4.conf.all.secure_redirects: 0
+  net.ipv4.conf.default.secure_redirects: 0
+  net.ipv6.conf.all.accept_redirects: 0
+  net.ipv6.conf.default.accept_redirects: 0
+
+# System Limits
+systemd_limits:
+  DefaultLimitNOFILE: 65536
+  DefaultLimitNPROC: 32768
+  DefaultLimitCORE: 0
+  DefaultLimitMEMLOCK: infinity
+
+# Log Configuration
+log_retention_days: 30
+log_max_size: "100M"
+log_rotate_count: 4
+
+# Monitoring Directories
+monitoring_directories:
+  - "/etc/monitoring"
+  - "/var/lib/monitoring"
+  - "/var/log/monitoring"
+
+# Package Lists
+essential_packages:
+  # System utilities
+  - vim
+  - wget
+  - curl
+  - git
+  - htop
+  - tree
+  - unzip
+  - tar
+  - gzip
+  
+  # Network utilities
+  - net-tools
+  - telnet
+  - nmap-ncat
+  - bind-utils
+  - traceroute
+  
+  # Security packages
+  - fail2ban
+  - firewalld
+  - policycoreutils-python-utils
+  - setools-console
+  
+  # Monitoring and logging
+  - rsyslog
+  - logrotate
+  - cronie
+  - chrony
+  
+  # Development tools
+  - gcc
+  - gcc-c++
+  - make
+  - openssl-devel
+  - libffi-devel
+  - zlib-devel
+  - bzip2-devel
+  - readline-devel
+  - sqlite-devel
+  
+  # Python essentials
+  - python3
+  - python3-pip
+  - python3-devel
+  - python3-setuptools
+  - python3-wheel
+
+oracle_linux_packages:
+  - oracle-linux-release-el8
+  - oraclelinux-developer-release-el8
+  - oracle-epel-release-el8
+
+# Packages to remove
+unnecessary_packages:
+  - sendmail
+  - postfix
+
+# Cron Jobs
+maintenance_cron_jobs:
+  - name: "System update check"
+    minute: "0"
+    hour: "2"
+    day: "*"
+    job: "/usr/bin/dnf check-update > /dev/null 2>&1"
+  - name: "Log cleanup"
+    minute: "30"
+    hour: "3"
+    day: "*"
+    job: "/usr/sbin/logrotate /etc/logrotate.conf"
+  - name: "Security scan"
+    minute: "0"
+    hour: "4"
+    day: "*"
+    job: "/usr/bin/find /var/log -name '*.log' -mtime +{{ log_retention_days }} -delete"
+
+# Service Configuration
+essential_services:
+  - chronyd
+  - firewalld
+  - fail2ban
+  - rsyslog
+  - crond
+
+# NTP Configuration
+ntp_servers:
+  - "0.oracle.pool.ntp.org"
+  - "1.oracle.pool.ntp.org"
+  - "2.oracle.pool.ntp.org"
+  - "3.oracle.pool.ntp.org"
+
+# Environment-specific overrides (set in group_vars)
+development_mode: false
+production_hardening: true
+audit_logging: true
+intrusion_detection: true
+
+# Backup Configuration
+backup_directories:
+  - "/etc"
+  - "/var/log"
+  - "/opt/library-system"
+
+# Security Hardening
+security_hardening:
+  disable_unused_filesystems: true
+  secure_shared_memory: true
+  disable_uncommon_protocols: true
+  kernel_module_blacklist:
+    - dccp
+    - sctp
+    - rds
+    - tipc
+    - cramfs
+    - freevxfs
+    - jffs2
+    - hfs
+    - hfsplus
+    - squashfs
+    - udf
+
+# Performance Monitoring
+performance_thresholds:
+  disk_usage_warning: 80
+  disk_usage_critical: 90
+  memory_usage_warning: 80
+  memory_usage_critical: 90
+  load_average_warning: 2.0
+  load_average_critical: 4.0

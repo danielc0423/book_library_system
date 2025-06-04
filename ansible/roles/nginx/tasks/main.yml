@@ -1,0 +1,288 @@
+---
+# ====================================
+# Nginx Role Main Tasks
+# Web Server and Load Balancer Configuration
+# ====================================
+
+- name: "Nginx Setup - Install Nginx"
+  dnf:
+    name:
+      - nginx
+      - nginx-mod-http-headers-more
+      - nginx-mod-http-geoip
+      - openssl
+      - openssl-devel
+    state: present
+  tags: ['nginx', 'packages']
+
+- name: "Nginx Setup - Create Nginx directories"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: nginx
+    group: nginx
+    mode: '0755'
+  with_items:
+    - /etc/nginx/conf.d
+    - /etc/nginx/sites-available
+    - /etc/nginx/sites-enabled
+    - /etc/nginx/ssl
+    - /var/log/nginx
+    - /var/cache/nginx
+    - /var/lib/nginx
+    - /usr/share/nginx/html/static
+  tags: ['nginx', 'directories']
+
+- name: "SSL Setup - Create self-signed SSL certificate for development"
+  command: >
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048
+    -keyout /etc/nginx/ssl/nginx-selfsigned.key
+    -out /etc/nginx/ssl/nginx-selfsigned.crt
+    -subj "/C=US/ST=CA/L=SanFrancisco/O=LibrarySystem/CN={{ ansible_hostname }}"
+  args:
+    creates: /etc/nginx/ssl/nginx-selfsigned.crt
+  when: 
+    - environment == 'development'
+    - ssl_certificate_type == 'self_signed'
+  tags: ['nginx', 'ssl', 'development']
+
+- name: "SSL Setup - Generate Diffie-Hellman parameters"
+  command: openssl dhparam -out /etc/nginx/ssl/dhparam.pem 2048
+  args:
+    creates: /etc/nginx/ssl/dhparam.pem
+  when: generate_dhparam | default(true)
+  tags: ['nginx', 'ssl', 'security']
+
+- name: "Nginx Configuration - Main configuration file"
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    backup: yes
+    owner: root
+    group: root
+    mode: '0644'
+    validate: 'nginx -t -c %s'
+  notify: restart nginx
+  tags: ['nginx', 'configuration']
+
+- name: "Nginx Configuration - Security headers configuration"
+  template:
+    src: security_headers.conf.j2
+    dest: /etc/nginx/conf.d/security_headers.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload nginx
+  tags: ['nginx', 'security']
+
+- name: "Nginx Configuration - SSL configuration"
+  template:
+    src: ssl.conf.j2
+    dest: /etc/nginx/conf.d/ssl.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload nginx
+  when: ssl_enabled | default(true)
+  tags: ['nginx', 'ssl']
+
+- name: "Nginx Configuration - Gzip compression configuration"
+  template:
+    src: gzip.conf.j2
+    dest: /etc/nginx/conf.d/gzip.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload nginx
+  tags: ['nginx', 'compression']
+
+- name: "Nginx Configuration - Rate limiting configuration"
+  template:
+    src: rate_limit.conf.j2
+    dest: /etc/nginx/conf.d/rate_limit.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload nginx
+  tags: ['nginx', 'security', 'rate-limit']
+
+- name: "Application Configuration - Django application site"
+  template:
+    src: "{{ nginx_config_type | default('application') }}.conf.j2"
+    dest: "/etc/nginx/sites-available/{{ app_name }}.conf"
+    owner: root
+    group: root
+    mode: '0644'
+    validate: 'nginx -t'
+  notify: reload nginx
+  when: nginx_config_type != 'loadbalancer'
+  tags: ['nginx', 'application']
+
+- name: "Load Balancer Configuration - Load balancer site"
+  template:
+    src: loadbalancer.conf.j2
+    dest: "/etc/nginx/sites-available/{{ app_name }}-lb.conf"
+    owner: root
+    group: root
+    mode: '0644'
+    validate: 'nginx -t'
+  notify: reload nginx
+  when: nginx_config_type == 'loadbalancer'
+  tags: ['nginx', 'loadbalancer']
+
+- name: "Site Configuration - Enable application site"
+  file:
+    src: "/etc/nginx/sites-available/{{ app_name }}.conf"
+    dest: "/etc/nginx/sites-enabled/{{ app_name }}.conf"
+    state: link
+  notify: reload nginx
+  when: nginx_config_type != 'loadbalancer'
+  tags: ['nginx', 'application']
+
+- name: "Site Configuration - Enable load balancer site"
+  file:
+    src: "/etc/nginx/sites-available/{{ app_name }}-lb.conf"
+    dest: "/etc/nginx/sites-enabled/{{ app_name }}-lb.conf"
+    state: link
+  notify: reload nginx
+  when: nginx_config_type == 'loadbalancer'
+  tags: ['nginx', 'loadbalancer']
+
+- name: "Site Configuration - Disable default site"
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: reload nginx
+  tags: ['nginx', 'configuration']
+
+- name: "Log Configuration - Create log rotation configuration"
+  template:
+    src: nginx_logrotate.j2
+    dest: /etc/logrotate.d/nginx
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['nginx', 'logging']
+
+- name: "Performance Tuning - Configure system limits for Nginx"
+  template:
+    src: nginx_limits.conf.j2
+    dest: /etc/security/limits.d/nginx.conf
+    owner: root
+    group: root
+    mode: '0644'
+  tags: ['nginx', 'performance']
+
+- name: "Firewall Configuration - Open HTTP and HTTPS ports"
+  firewalld:
+    service: "{{ item }}"
+    permanent: yes
+    state: enabled
+    immediate: yes
+  with_items:
+    - http
+    - https
+  tags: ['nginx', 'firewall']
+
+- name: "Service Management - Start and enable Nginx"
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+    daemon_reload: yes
+  tags: ['nginx', 'service']
+
+- name: "Health Check - Verify Nginx is responding"
+  uri:
+    url: "http://localhost:{{ nginx_port | default(80) }}/"
+    method: GET
+    timeout: 10
+  register: nginx_health
+  retries: 3
+  delay: 5
+  tags: ['nginx', 'health']
+
+- name: "SSL Health Check - Verify SSL is working"
+  uri:
+    url: "https://localhost:{{ nginx_ssl_port | default(443) }}/"
+    method: GET
+    timeout: 10
+    validate_certs: false
+  register: nginx_ssl_health
+  retries: 3
+  delay: 5
+  when: ssl_enabled | default(true)
+  failed_when: false
+  tags: ['nginx', 'ssl', 'health']
+
+- name: "Monitoring Setup - Create Nginx status monitoring"
+  template:
+    src: nginx_status.conf.j2
+    dest: /etc/nginx/conf.d/status.conf
+    owner: root
+    group: root
+    mode: '0644'
+  notify: reload nginx
+  when: monitoring_enabled | default(true)
+  tags: ['nginx', 'monitoring']
+
+- name: "Security Setup - Create fail2ban Nginx filters"
+  template:
+    src: "{{ item }}.j2"
+    dest: "/etc/fail2ban/filter.d/{{ item }}"
+    owner: root
+    group: root
+    mode: '0644'
+  with_items:
+    - nginx-http-auth.conf
+    - nginx-noscript.conf
+    - nginx-badbots.conf
+    - nginx-noproxy.conf
+  notify: restart fail2ban
+  when: fail2ban_enabled | default(true)
+  tags: ['nginx', 'security', 'fail2ban']
+
+- name: "Backup Setup - Create Nginx configuration backup script"
+  template:
+    src: nginx_backup.sh.j2
+    dest: /usr/local/bin/nginx_backup.sh
+    owner: root
+    group: root
+    mode: '0755'
+  tags: ['nginx', 'backup']
+
+- name: "Cache Setup - Create cache directories"
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: nginx
+    group: nginx
+    mode: '0755'
+  with_items:
+    - /var/cache/nginx/client_temp
+    - /var/cache/nginx/proxy_temp
+    - /var/cache/nginx/fastcgi_temp
+    - /var/cache/nginx/uwsgi_temp
+    - /var/cache/nginx/scgi_temp
+  tags: ['nginx', 'cache']
+
+- name: "Performance Check - Verify Nginx performance"
+  command: nginx -V
+  register: nginx_version
+  changed_when: false
+  tags: ['nginx', 'verification']
+
+- name: "Nginx Information - Display configuration status"
+  debug:
+    msg: |
+      Nginx Configuration Complete:
+      - Version: {{ nginx_version.stderr.split()[2] }}
+      - Configuration Type: {{ nginx_config_type | default('application') }}
+      - HTTP Port: {{ nginx_port | default(80) }}
+      - HTTPS Port: {{ nginx_ssl_port | default(443) }}
+      - SSL Enabled: {{ ssl_enabled | default(true) }}
+      - Worker Processes: {{ nginx_worker_processes }}
+      - Worker Connections: {{ nginx_worker_connections }}
+      - Health Check: {{ nginx_health.status | default('Unknown') }}
+      - SSL Health Check: {{ nginx_ssl_health.status | default('Unknown') }}
+  tags: ['nginx', 'info']

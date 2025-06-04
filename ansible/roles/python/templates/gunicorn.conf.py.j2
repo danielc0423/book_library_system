@@ -1,0 +1,150 @@
+# ====================================
+# Gunicorn Configuration Template
+# Django WSGI Application Server
+# Command 7: Ansible Configuration Management
+# ====================================
+
+import multiprocessing
+import os
+
+# Server socket
+bind = "{{ gunicorn_bind }}:{{ gunicorn_bind_port }}"
+backlog = 2048
+
+# Worker processes
+workers = {{ gunicorn_workers }}
+worker_class = "{{ gunicorn_worker_class }}"
+worker_connections = {{ gunicorn_worker_connections }}
+max_requests = {{ gunicorn_max_requests }}
+max_requests_jitter = {{ gunicorn_max_requests_jitter }}
+timeout = {{ gunicorn_timeout }}
+keepalive = {{ gunicorn_keepalive }}
+
+# Preload app for better performance
+preload_app = {{ gunicorn_preload_app | lower }}
+
+# Restart workers after this many requests, to help prevent memory leaks
+max_requests = {{ gunicorn_max_requests }}
+
+# Restart workers after this many seconds
+timeout = {{ gunicorn_timeout }}
+
+# The maximum time a worker can handle a request before it gets killed
+graceful_timeout = 30
+
+# Server mechanics
+pidfile = "/run/gunicorn/gunicorn.pid"
+user = "{{ app_user }}"
+group = "{{ app_group }}"
+tmp_upload_dir = None
+
+# SSL (if enabled)
+{% if ssl_enabled | default(false) %}
+keyfile = "{{ ssl_private_key_path }}"
+certfile = "{{ ssl_certificate_path }}"
+ssl_version = 2
+cert_reqs = 0
+ca_certs = None
+suppress_ragged_eofs = True
+do_handshake_on_connect = False
+ciphers = "ECDHE+AESGCM:ECDHE+CHACHA20:DHE+AESGCM:DHE+CHACHA20:!aNULL:!MD5:!DSS"
+{% endif %}
+
+# Logging
+loglevel = "{{ gunicorn_log_level }}"
+accesslog = "{{ gunicorn_access_log }}"
+errorlog = "{{ gunicorn_error_log }}"
+access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" %(D)s'
+
+# Process naming
+proc_name = "gunicorn-library-system"
+
+# Environment variables
+raw_env = [
+    'DJANGO_SETTINGS_MODULE={{ django_settings_module }}',
+    'ENVIRONMENT={{ environment }}',
+]
+
+# Worker class specific settings
+{% if gunicorn_worker_class == 'gevent' %}
+worker_class = "gevent"
+worker_connections = 1000
+{% elif gunicorn_worker_class == 'eventlet' %}
+worker_class = "eventlet"
+worker_connections = 1000
+{% endif %}
+
+# Security
+limit_request_line = 4094
+limit_request_fields = 100
+limit_request_field_size = 8190
+
+# Performance tuning
+worker_tmp_dir = "/dev/shm"
+
+# Environment-specific configuration
+{% if environment == 'development' %}
+# Development settings
+reload = True
+timeout = 300
+workers = 2
+loglevel = "debug"
+{% elif environment == 'staging' %}
+# Staging settings
+reload = False
+timeout = {{ gunicorn_timeout }}
+workers = {{ gunicorn_workers }}
+{% else %}
+# Production settings
+reload = False
+timeout = {{ gunicorn_timeout }}
+workers = {{ gunicorn_workers }}
+preload_app = True
+{% endif %}
+
+# Worker lifecycle hooks
+def when_ready(server):
+    """Called just after the server is started."""
+    server.log.info("Gunicorn server is ready. Listening at: %s", server.address)
+
+def worker_int(worker):
+    """Called just after a worker has been killed by a SIGINT or SIGQUIT signal."""
+    worker.log.info("Worker received INT or QUIT signal")
+
+def pre_fork(server, worker):
+    """Called just before a worker is forked."""
+    server.log.info("Worker spawned (pid: %s)", worker.pid)
+
+def post_fork(server, worker):
+    """Called just after a worker has been forked."""
+    server.log.info("Worker spawned (pid: %s)", worker.pid)
+
+def pre_exec(server):
+    """Called just before a new master process is forked."""
+    server.log.info("Forked child, re-executing.")
+
+def worker_abort(worker):
+    """Called when a worker receives the SIGABRT signal."""
+    worker.log.info("Worker received SIGABRT signal")
+
+# Oracle Cloud specific optimizations
+{% if ansible_system_vendor is defined and 'Oracle' in ansible_system_vendor %}
+# Oracle Cloud Infrastructure optimizations
+enable_stdio_inheritance = True
+reuse_port = True
+{% endif %}
+
+# Health check configuration
+def application(environ, start_response):
+    """Simple health check application."""
+    if environ.get('PATH_INFO') == '/health/':
+        status = '200 OK'
+        headers = [('Content-type', 'text/plain')]
+        start_response(status, headers)
+        return [b'OK']
+    else:
+        # Delegate to Django
+        from django.core.wsgi import get_wsgi_application
+        os.environ.setdefault('DJANGO_SETTINGS_MODULE', '{{ django_settings_module }}')
+        application = get_wsgi_application()
+        return application(environ, start_response)

@@ -1,0 +1,119 @@
+# ====================================
+# Ansible Vault Example Configuration
+# Encrypted Variables Template
+# Command 7: Ansible Configuration Management
+# ====================================
+
+# THIS IS AN EXAMPLE FILE - DO NOT USE IN PRODUCTION
+# Create actual vault files with: ansible-vault create vault/development.yml
+
+# Database Credentials
+vault_database_password: "SecurePassword123!"
+vault_db_admin_password: "AdminPassword456!"
+
+# Django Configuration
+vault_django_secret_key: "django-insecure-example-key-change-this-in-production"
+vault_django_admin_password: "admin123!"
+
+# Email Configuration
+vault_email_user: "noreply@library-system.com"
+vault_email_password: "EmailPassword789!"
+
+# Oracle Integration Cloud
+vault_oic_endpoint: "https://your-oic-instance.integration.ocp.oraclecloud.com"
+vault_oic_username: "integration_user"
+vault_oic_password: "OICPassword123!"
+
+# Oracle Analytics Cloud
+vault_analytics_endpoint: "https://your-analytics-instance.analytics.ocp.oraclecloud.com"
+vault_analytics_token: "analytics_token_here"
+
+# Oracle Cloud Infrastructure
+vault_oci_auth_token: "your_oci_auth_token_here"
+vault_oci_compartment_id: "ocid1.compartment.oc1..your_compartment_id"
+vault_wallet_download_url: "https://your-autonomous-db.adb.region.oraclecloud.com/wallet"
+
+# SSL Certificates (if using custom)
+vault_ssl_certificate: |
+  -----BEGIN CERTIFICATE-----
+  YOUR_CERTIFICATE_CONTENT_HERE
+  -----END CERTIFICATE-----
+
+vault_ssl_private_key: |
+  -----BEGIN PRIVATE KEY-----
+  YOUR_PRIVATE_KEY_CONTENT_HERE
+  -----END PRIVATE KEY-----
+
+# Monitoring and Alerting
+vault_sentry_dsn: "https://your-sentry-dsn@sentry.io/project-id"
+
+# Third-party API Keys
+vault_external_api_key: "your_external_api_key_here"
+
+# Backup Encryption
+vault_backup_encryption_key: "backup_encryption_key_here"
+
+# Load Balancer Configuration
+vault_lb_admin_password: "LoadBalancerAdmin123!"
+
+# Development Override (Example)
+vault_dev_override_password: "DevPassword123!"
+
+# Production Secrets (Example)
+vault_prod_database_password: "ProductionDBPassword123!"
+vault_prod_django_secret_key: "production-django-secret-key-here"
+
+# Oracle Wallet Password
+vault_wallet_password: "WalletPassword123!"
+
+# API Gateway Configuration
+vault_api_gateway_key: "api_gateway_key_here"
+
+# Encryption Keys
+vault_field_encryption_key: "field_encryption_key_here"
+vault_file_encryption_key: "file_encryption_key_here"
+
+# LDAP/Active Directory (if integrated)
+vault_ldap_bind_password: "LDAPPassword123!"
+
+# Message Queue Credentials
+vault_rabbitmq_password: "RabbitMQPassword123!"
+vault_kafka_password: "KafkaPassword123!"
+
+# Cloud Storage Credentials
+vault_s3_access_key: "s3_access_key_here"
+vault_s3_secret_key: "s3_secret_key_here"
+
+# Redis Credentials
+vault_redis_password: "RedisPassword123!"
+
+# Session Signing Key
+vault_session_key: "session_signing_key_here"
+
+# JWT Secret Keys
+vault_jwt_secret_key: "jwt_secret_key_here"
+vault_jwt_refresh_secret: "jwt_refresh_secret_here"
+
+# External Service Credentials
+vault_payment_gateway_key: "payment_gateway_key_here"
+vault_sms_service_key: "sms_service_key_here"
+
+# Certificate Authority
+vault_ca_certificate: |
+  -----BEGIN CERTIFICATE-----
+  YOUR_CA_CERTIFICATE_CONTENT_HERE
+  -----END CERTIFICATE-----
+
+# Instructions for creating actual vault files:
+# 1. Create vault password file: echo "your_vault_password" > vault/.vault_pass
+# 2. Create encrypted vault: ansible-vault create vault/development.yml
+# 3. Edit vault: ansible-vault edit vault/development.yml
+# 4. Encrypt existing file: ansible-vault encrypt vault/production.yml
+# 5. Decrypt for editing: ansible-vault decrypt vault/staging.yml
+# 6. View encrypted file: ansible-vault view vault/production.yml
+# 7. Change vault password: ansible-vault rekey vault/development.yml
+
+# Example commands:
+# ansible-vault create vault/development.yml --vault-password-file=vault/.vault_pass
+# ansible-vault edit vault/production.yml --vault-password-file=vault/.vault_pass
+# ansible-playbook site.yml --vault-password-file=vault/.vault_pass -i inventory/production/
