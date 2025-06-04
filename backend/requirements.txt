@@ -1,0 +1,59 @@
+# Django Book Library System Dependencies
+# Install with: uv pip install -r requirements.txt
+
+# Core Django Framework
+Django>=4.2,<5.0
+djangorestframework>=3.14.0
+django-cors-headers>=4.0.0
+
+# Authentication & JWT
+djangorestframework-simplejwt>=5.2.0
+rest-framework-simplejwt[crypto]>=5.2.0
+python-jose>=3.3.0
+cryptography>=41.0.0
+
+# Oracle Database & Cloud
+oracledb>=1.4.0
+oci>=2.100.0
+cx_Oracle>=8.3.0  # Legacy Oracle driver (fallback)
+
+# Configuration & Environment
+python-decouple>=3.8
+python-dotenv>=1.0.0
+
+# API Documentation
+drf-spectacular>=0.26.0
+drf-spectacular[sidecar]>=0.26.0
+
+# Background Tasks
+celery[redis]>=5.3.0
+django-celery-beat>=2.5.0
+redis>=4.5.0
+django-redis>=5.3.0
+
+# Filtering & Search
+django-filter>=23.0
+elasticsearch-dsl>=8.8.0  # Optional for advanced search
+
+# HTTP & Requests
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Production Server
+gunicorn>=21.0.0
+whitenoise>=6.5.0
+
+# Health Checks
+django-health-check>=3.17.0
+
+# Database Adapters (Fallback options)
+psycopg2-binary>=2.9.0  # PostgreSQL
+pymysql>=1.1.0          # MySQL
+
+# Development Tools (Optional - install separately if needed)
+# django-extensions>=3.2.3
+# django-debug-toolbar>=4.1.0
+
+# Utilities
+python-slugify>=8.0.0
+Pillow>=10.0.0          # Only if image handling needed later

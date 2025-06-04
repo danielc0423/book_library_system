@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  # Django application
+  web:
+    build: .
+    command: .venv/bin/python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=library_system.settings.development
+    depends_on:
+      - redis
+      - db
+    networks:
+      - library_network
+
+  # Redis for caching and Celery
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - library_network
+
+  # PostgreSQL database (for development, replace with Oracle in production)
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=library_db
+      - POSTGRES_USER=library_user
+      - POSTGRES_PASSWORD=library_password
+    ports:
+      - "5432:5432"
+    networks:
+      - library_network
+
+  # Celery worker
+  celery:
+    build: .
+    command: .venv/bin/celery -A library_system worker -l info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=library_system.settings.development
+    depends_on:
+      - redis
+      - db
+    networks:
+      - library_network
+
+  # Celery beat scheduler
+  celery-beat:
+    build: .
+    command: .venv/bin/celery -A library_system beat -l info
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=library_system.settings.development
+    depends_on:
+      - redis
+      - db
+    networks:
+      - library_network
+
+  # Flower for Celery monitoring (optional)
+  flower:
+    build: .
+    command: .venv/bin/celery -A library_system flower
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=library_system.settings.development
+    ports:
+      - "5555:5555"
+    depends_on:
+      - redis
+      - celery
+    networks:
+      - library_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  library_network:
+    driver: bridge

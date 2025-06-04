@@ -1,0 +1,774 @@
+{
+  "info": {
+    "name": "Library Management System API",
+    "description": "Complete API collection for the Library Management System with Django REST Framework and Oracle Cloud Integration",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "book_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "record_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set(\"access_token\", response.access);",
+                  "    pm.environment.set(\"refresh_token\", response.refresh);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"testuser@example.com\",\n    \"password\": \"TestPass123!\",\n    \"password_confirm\": \"TestPass123!\",\n    \"first_name\": \"Test\",\n    \"last_name\": \"User\",\n    \"phone_number\": \"1234567890\",\n    \"user_type\": \"student\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register", ""]
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set(\"access_token\", response.access);",
+                  "    pm.environment.set(\"refresh_token\", response.refresh);",
+                  "    pm.environment.set(\"user_id\", response.user_id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"testuser\",\n    \"password\": \"TestPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login", ""]
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set(\"access_token\", response.access);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refresh\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/refresh/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "refresh", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/profile/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"first_name\": \"Updated\",\n    \"last_name\": \"Name\",\n    \"phone_number\": \"9876543210\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/profile/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "profile", ""]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"old_password\": \"TestPass123!\",\n    \"new_password\": \"NewTestPass123!\",\n    \"new_password_confirm\": \"NewTestPass123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/change-password/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "change-password", ""]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/logout/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Books",
+      "item": [
+        {
+          "name": "List Books",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    if (response.results && response.results.length > 0) {",
+                  "        pm.environment.set(\"book_id\", response.results[0].id);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/books/?page=1&page_size=10",
+              "host": ["{{base_url}}"],
+              "path": ["books", "books", ""],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "page_size",
+                  "value": "10"
+                },
+                {
+                  "key": "search",
+                  "value": "Python",
+                  "disabled": true
+                },
+                {
+                  "key": "available_only",
+                  "value": "true",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Book Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/books/{{book_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "books", "{{book_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Search Books",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"query\": \"Python\",\n    \"available_only\": true,\n    \"year_from\": 2020,\n    \"year_to\": 2024\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/books/books/search/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "books", "search", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Popular Books",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/books/popular/?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["books", "books", "popular", ""],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Recommendations",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/books/recommendations/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "books", "recommendations", ""]
+            }
+          }
+        },
+        {
+          "name": "List Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/categories/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "categories", ""]
+            }
+          }
+        },
+        {
+          "name": "Get Category Tree",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/categories/tree/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "categories", "tree", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Borrowing",
+      "item": [
+        {
+          "name": "Borrow Book",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.environment.set(\"record_id\", response.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"book_id\": \"{{book_id}}\",\n    \"notes\": \"Handle with care\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/books/borrow/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "borrow", ""]
+            }
+          }
+        },
+        {
+          "name": "Bulk Borrow Books",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"book_ids\": [\"book_id_1\", \"book_id_2\"],\n    \"notes\": \"Borrowed for research\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/books/borrow/bulk/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "borrow", "bulk", ""]
+            }
+          }
+        },
+        {
+          "name": "Current Borrowed Books",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/current/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "current", ""]
+            }
+          }
+        },
+        {
+          "name": "Borrowing History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/history/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "history", ""]
+            }
+          }
+        },
+        {
+          "name": "Overdue Books",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/overdue/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "overdue", ""]
+            }
+          }
+        },
+        {
+          "name": "Return Book",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"condition_notes\": \"Book in good condition\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/books/return/{{record_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "return", "{{record_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Bulk Return Books",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"record_ids\": [1, 2, 3],\n    \"condition_notes\": \"All books in good condition\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/books/return/bulk/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "return", "bulk", ""]
+            }
+          }
+        },
+        {
+          "name": "Renew Book",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/renew/{{record_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "renew", "{{record_id}}", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "User Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/dashboard/",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "dashboard", ""]
+            }
+          }
+        },
+        {
+          "name": "User Credit Score",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/credit-score/",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "credit-score", ""]
+            }
+          }
+        },
+        {
+          "name": "Book Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/books/statistics/",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "books", "statistics", ""]
+            }
+          }
+        },
+        {
+          "name": "Library Trends",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/trends/?period=month",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "trends", ""],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "month"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Admin Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/admin/dashboard/",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "admin", "dashboard", ""]
+            }
+          }
+        },
+        {
+          "name": "Popular Books Report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/admin/reports/popular-books/?days=30&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "admin", "reports", "popular-books", ""],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "30"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Overdue Books Report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/admin/reports/overdue/",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "admin", "reports", "overdue", ""]
+            }
+          }
+        },
+        {
+          "name": "User Activity Report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/admin/reports/user-activity/?days=30",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "admin", "reports", "user-activity", ""],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "30"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/users/",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "users", ""]
+            }
+          }
+        },
+        {
+          "name": "Create Book",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"isbn\": \"9781234567890\",\n    \"title\": \"New Book Title\",\n    \"author\": \"Author Name\",\n    \"category\": \"category_id\",\n    \"publication_year\": 2024,\n    \"publisher\": \"Publisher Name\",\n    \"description\": \"Book description\",\n    \"total_copies\": 5,\n    \"location\": \"Shelf A1\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/books/books/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "books", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Book",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"total_copies\": 10,\n    \"location\": \"Shelf B2\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/books/books/{{book_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "books", "{{book_id}}", ""]
+            }
+          }
+        },
+        {
+          "name": "Delete Book",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/books/books/{{book_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["books", "books", "{{book_id}}", ""]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get Notification Preferences",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/notifications/preferences/",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "preferences", ""]
+            }
+          }
+        },
+        {
+          "name": "Update Notification Preferences",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email_enabled\": true,\n    \"overdue_reminders\": true,\n    \"due_date_reminders\": true,\n    \"reminder_days_before\": 3\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/notifications/preferences/",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "preferences", ""]
+            }
+          }
+        },
+        {
+          "name": "Notification History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/notifications/history/",
+              "host": ["{{base_url}}"],
+              "path": ["notifications", "history", ""]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

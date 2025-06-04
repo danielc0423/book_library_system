@@ -1,0 +1,239 @@
+[
+  {
+    "model": "analytics.usercreditscore",
+    "pk": 2,
+    "fields": {
+      "credit_score": "825.50",
+      "on_time_returns": 4,
+      "late_returns": 1,
+      "total_books_borrowed": 5,
+      "average_return_delay": "0.20",
+      "reliability_rating": "Very Good",
+      "max_books_allowed": 15,
+      "external_system_scores": {
+        "bike_rental": {
+          "score": 780.0,
+          "last_updated": "2024-05-20T10:30:00Z",
+          "metadata": {
+            "total_rentals": 12,
+            "late_returns": 1,
+            "damages": 0
+          }
+        }
+      },
+      "composite_score": "802.75",
+      "system_privileges": {
+        "library": {
+          "max_books": 15,
+          "renewal_allowed": true,
+          "express_checkout": true,
+          "priority_reservations": false
+        },
+        "bike_rental": {
+          "max_duration_hours": 48,
+          "security_deposit_reduction": 50,
+          "instant_approval": true
+        },
+        "equipment_rental": {
+          "allowed": true,
+          "max_items": 3,
+          "extended_period": true
+        }
+      },
+      "last_cross_sync": "2024-05-20T10:30:00Z",
+      "last_calculated": "2024-05-20T10:30:00Z",
+      "created_at": "2024-02-15T09:30:00Z",
+      "updated_at": "2024-05-20T10:30:00Z"
+    }
+  },
+  {
+    "model": "analytics.usercreditscore",
+    "pk": 3,
+    "fields": {
+      "credit_score": "920.00",
+      "on_time_returns": 6,
+      "late_returns": 0,
+      "total_books_borrowed": 6,
+      "average_return_delay": "0.00",
+      "reliability_rating": "Excellent",
+      "max_books_allowed": 20,
+      "external_system_scores": {
+        "bike_rental": {
+          "score": 950.0,
+          "last_updated": "2024-05-25T14:15:00Z",
+          "metadata": {
+            "total_rentals": 8,
+            "late_returns": 0,
+            "damages": 0,
+            "feedback_score": 4.9
+          }
+        },
+        "equipment_rental": {
+          "score": 890.0,
+          "last_updated": "2024-05-18T09:20:00Z",
+          "metadata": {
+            "total_rentals": 5,
+            "late_returns": 0,
+            "condition_rating": "excellent"
+          }
+        }
+      },
+      "composite_score": "920.00",
+      "system_privileges": {
+        "library": {
+          "max_books": 20,
+          "renewal_allowed": true,
+          "express_checkout": true,
+          "priority_reservations": true
+        },
+        "bike_rental": {
+          "max_duration_hours": 48,
+          "security_deposit_reduction": 50,
+          "instant_approval": true
+        },
+        "equipment_rental": {
+          "allowed": true,
+          "max_items": 3,
+          "extended_period": true
+        }
+      },
+      "last_cross_sync": "2024-05-25T14:15:00Z",
+      "last_calculated": "2024-05-25T14:15:00Z",
+      "created_at": "2024-01-20T11:15:00Z",
+      "updated_at": "2024-05-25T14:15:00Z"
+    }
+  },
+  {
+    "model": "analytics.usercreditscore",
+    "pk": 4,
+    "fields": {
+      "credit_score": "650.25",
+      "on_time_returns": 2,
+      "late_returns": 3,
+      "total_books_borrowed": 5,
+      "average_return_delay": "4.33",
+      "reliability_rating": "Fair",
+      "max_books_allowed": 7,
+      "external_system_scores": {
+        "bike_rental": {
+          "score": 620.0,
+          "last_updated": "2024-05-22T16:45:00Z",
+          "metadata": {
+            "total_rentals": 6,
+            "late_returns": 2,
+            "damages": 1,
+            "payment_delays": 1
+          }
+        }
+      },
+      "composite_score": "635.13",
+      "system_privileges": {
+        "library": {
+          "max_books": 7,
+          "renewal_allowed": true,
+          "express_checkout": false,
+          "priority_reservations": false
+        },
+        "bike_rental": {
+          "max_duration_hours": 24,
+          "security_deposit_reduction": 0,
+          "instant_approval": false
+        },
+        "equipment_rental": {
+          "allowed": true,
+          "max_items": 1,
+          "extended_period": false
+        }
+      },
+      "last_cross_sync": "2024-05-22T16:45:00Z",
+      "last_calculated": "2024-05-22T16:45:00Z",
+      "created_at": "2024-03-01T14:20:00Z",
+      "updated_at": "2024-05-22T16:45:00Z"
+    }
+  },
+  {
+    "model": "analytics.usercreditscore",
+    "pk": 5,
+    "fields": {
+      "credit_score": "750.00",
+      "on_time_returns": 0,
+      "late_returns": 0,
+      "total_books_borrowed": 0,
+      "average_return_delay": "0.00",
+      "reliability_rating": "Good",
+      "max_books_allowed": 10,
+      "external_system_scores": {},
+      "composite_score": "750.00",
+      "system_privileges": {
+        "library": {
+          "max_books": 10,
+          "renewal_allowed": true,
+          "express_checkout": false,
+          "priority_reservations": false
+        },
+        "bike_rental": {
+          "max_duration_hours": 24,
+          "security_deposit_reduction": 0,
+          "instant_approval": true
+        },
+        "equipment_rental": {
+          "allowed": true,
+          "max_items": 1,
+          "extended_period": true
+        }
+      },
+      "last_cross_sync": null,
+      "last_calculated": "2024-01-10T08:00:00Z",
+      "created_at": "2024-01-10T08:00:00Z",
+      "updated_at": "2024-01-10T08:00:00Z"
+    }
+  },
+  {
+    "model": "analytics.usercreditscore",
+    "pk": 6,
+    "fields": {
+      "credit_score": "775.80",
+      "on_time_returns": 3,
+      "late_returns": 0,
+      "total_books_borrowed": 3,
+      "average_return_delay": "0.00",
+      "reliability_rating": "Good",
+      "max_books_allowed": 10,
+      "external_system_scores": {
+        "equipment_rental": {
+          "score": 800.0,
+          "last_updated": "2024-05-15T11:30:00Z",
+          "metadata": {
+            "total_rentals": 3,
+            "late_returns": 0,
+            "condition_rating": "good",
+            "user_type": "student"
+          }
+        }
+      },
+      "composite_score": "787.90",
+      "system_privileges": {
+        "library": {
+          "max_books": 10,
+          "renewal_allowed": true,
+          "express_checkout": false,
+          "priority_reservations": false
+        },
+        "bike_rental": {
+          "max_duration_hours": 24,
+          "security_deposit_reduction": 0,
+          "instant_approval": true
+        },
+        "equipment_rental": {
+          "allowed": true,
+          "max_items": 1,
+          "extended_period": true
+        }
+      },
+      "last_cross_sync": "2024-05-15T11:30:00Z",
+      "last_calculated": "2024-05-15T11:30:00Z",
+      "created_at": "2024-02-28T16:45:00Z",
+      "updated_at": "2024-05-15T11:30:00Z"
+    }
+  }
+]
